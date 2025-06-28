@@ -87,8 +87,8 @@ const processKeylogs = (hostname, rawLogs) => {
 };
 
 app.post("/", async (req, res) => {
+    console.log(`request to save logs came by`)
     const { logs, hostname } = req.body;
-    console.log(`request to save logs came by ${hostname}`)
     if (!Array.isArray(logs) || !hostname) {
         return res.status(400).json({ success: false, message: "Missing logs array or hostname" });
     }

