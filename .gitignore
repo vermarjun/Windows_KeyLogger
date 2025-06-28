@@ -1,7 +1,13 @@
 .vscode
 node_modules
 main.exe
+keylogger.exe
 keylogger.log
+
+# backend
+node_modules
+driveAccess.json
+.env
 
 main.exe
 .env

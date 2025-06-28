@@ -11,46 +11,60 @@ void sendLogsToBackend() {
     std::cout << "[DEBUG] Entered sendLogsToBackend()" << std::endl;
     std::lock_guard<std::mutex> lock(log_mutex);
     std::cout << "[DEBUG] Acquired log_mutex" << std::endl;
-    std::ifstream logFile(log_file_name);
-    if (!logFile.is_open()) {
-        std::cerr << "[ERROR] Failed to open log file for upload.\n";
+    
+    // Get logs as JSON array directly (this function already handles file reading)
+    nlohmann::json logsArray = getLogsAsJsonArray(log_file_name);
+    std::cout << "[DEBUG] Got logs as JSON array, size: " << logsArray.size() << std::endl;
+    
+    if (logsArray.empty()) {
+        std::cout << "[INFO] No logs to upload. Skipping upload.\n";
         return;
     }
-    std::cout << "[DEBUG] Opened log file" << std::endl;
-    std::string logs((std::istreambuf_iterator<char>(logFile)), std::istreambuf_iterator<char>());
-    logFile.close();
-    std::cout << "[DEBUG] Read log file, size: " << logs.size() << std::endl;
-    if (logs.empty()) {
-        std::cout << "[INFO] Log file is empty. Skipping upload.\n";
-        return;
-    }
+    
     std::string hostname = getUserName();
     std::cout << "[DEBUG] Hostname: " << hostname << std::endl;
+    
+    // Send all logs in one request - server will handle batching
+    bool uploadSuccess = sendBatchToBackend(hostname, logsArray);
+    
+    if (uploadSuccess) {
+        // Clear the log file after successful upload
+        std::ofstream clearFile(log_file_name, std::ios::out | std::ios::trunc);
+        clearFile.close();
+        std::cout << "[INFO] Logs cleared after successful upload.\n";
+    } else {
+        std::cerr << "[ERROR] Upload failed. Logs not cleared.\n";
+    }
+    
+    std::cout << "[DEBUG] Exiting sendLogsToBackend()" << std::endl;
+}
+
+bool sendBatchToBackend(const std::string& hostname, const nlohmann::json& batch) {
     HINTERNET hSession = InternetOpenA("LogUploader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) {
-        std::cerr << "[ERROR] Failed to open Internet session.\n";
-        return;
+        std::cerr << "[ERROR] Failed to open Internet session. Error: " << GetLastError() << std::endl;
+        return false;
     }
-    std::cout << "[DEBUG] Internet session opened" << std::endl;
+    
     HINTERNET hConnect = InternetConnectA(hSession, serverName, BACKEND_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConnect) {
-        std::cerr << "[ERROR] Failed to connect to server.\n";
+        std::cerr << "[ERROR] Failed to connect to server. Error: " << GetLastError() << std::endl;
         InternetCloseHandle(hSession);
-        return;
+        return false;
     }
-    std::cout << "[DEBUG] Connected to server" << std::endl;
+    
     HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", resource, NULL, NULL, NULL, 0, 0);
     if (!hRequest) {
-        std::cerr << "[ERROR] Failed to open HTTP request.\n";
+        std::cerr << "[ERROR] Failed to open HTTP request. Error: " << GetLastError() << std::endl;
         InternetCloseHandle(hConnect);
         InternetCloseHandle(hSession);
-        return;
+        return false;
     }
-    std::cout << "[DEBUG] HTTP request opened" << std::endl;
-    std::string logsJson = getLogsAsJsonArray(log_file_name).dump();
-    std::string body = "{\"logs\":" + logsJson + ",\"hostname\":\"" + hostname + "\"}";
+    
+    // Create request body
+    std::string body = "{\"logs\":" + batch.dump() + ",\"hostname\":\"" + hostname + "\"}";
     std::string headers = "Content-Type: application/json\r\n";
-    std::cout << "[DEBUG] Prepared request body, size: " << body.size() << std::endl;
+    
     BOOL bRequestSent = HttpSendRequestA(
         hRequest,
         headers.c_str(),
@@ -58,10 +72,9 @@ void sendLogsToBackend() {
         (LPVOID)body.c_str(),
         body.size()
     );
-    if (!bRequestSent) {
-        std::cerr << "[ERROR] Failed to send HTTP request.\n";
-    } else {
-        std::cout << "[DEBUG] HTTP request sent" << std::endl;
+    
+    bool success = false;
+    if (bRequestSent) {
         char responseBuffer[4096] = { 0 };
         DWORD bytesRead = 0;
         BOOL bRead = InternetReadFile(hRequest, responseBuffer, sizeof(responseBuffer) - 1, &bytesRead);
@@ -70,21 +83,26 @@ void sendLogsToBackend() {
             std::string response(responseBuffer);
             response.erase(0, response.find_first_not_of(" \t\n\r"));
             response.erase(response.find_last_not_of(" \t\n\r") + 1);
-            if (response == "{\"success\":true}") {
-                std::ofstream clearFile(log_file_name, std::ios::out | std::ios::trunc);
-                clearFile.close();
-                std::cout << "[INFO] Logs cleared after successful upload.\n";
+            std::cout << "[DEBUG] Server response: " << response << std::endl;
+            
+            // Check for success in the new response format
+            if (response.find("\"success\":true") != std::string::npos) {
+                success = true;
             } else {
-                std::cerr << "[ERROR] Upload failed. Server response not {\"success\":true}.\n";
+                std::cerr << "[ERROR] Upload failed. Server response not successful.\n";
             }
         } else {
-            std::cerr << "[ERROR] Failed to read server response.\n";
+            std::cerr << "[ERROR] Failed to read server response. Error: " << GetLastError() << std::endl;
         }
+    } else {
+        std::cerr << "[ERROR] Failed to send HTTP request. Error: " << GetLastError() << std::endl;
     }
+    
     InternetCloseHandle(hRequest);
     InternetCloseHandle(hConnect);
     InternetCloseHandle(hSession);
-    std::cout << "[DEBUG] Exiting sendLogsToBackend()" << std::endl;
+    
+    return success;
 }
 
 void scheduleBackendCalls(int intervalSeconds) {

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdio>
 #include <windows.h>
+#include <vector>
 
 std::mutex log_mutex;
 
@@ -24,24 +25,44 @@ void backupCorruptedLog(const std::string& filename) {
 }
 
 nlohmann::json getLogsAsJsonArray(const std::string& filename) {
-    std::lock_guard<std::mutex> lock(log_mutex);
+    std::cout << "[DEBUG] getLogsAsJsonArray: Starting to read file: " << filename << std::endl;
+    // Remove mutex lock here since it's already locked in sendLogsToBackend()
+    // std::lock_guard<std::mutex> lock(log_mutex);
+    std::cout << "[DEBUG] getLogsAsJsonArray: Mutex already locked by caller" << std::endl;
+    
     std::ifstream logFile;
-    if (!safeOpenFile(filename, logFile)) return nlohmann::json::array();
+    if (!safeOpenFile(filename, logFile)) {
+        std::cout << "[DEBUG] getLogsAsJsonArray: Failed to open file" << std::endl;
+        return nlohmann::json::array();
+    }
+    std::cout << "[DEBUG] getLogsAsJsonArray: File opened successfully" << std::endl;
+    
+    // Read all lines from the file
+    std::vector<std::string> lines;
     std::string line;
-    nlohmann::json logs = nlohmann::json::array();
-    int lineNum = 0;
     while (getline(logFile, line)) {
-        ++lineNum;
-        if (!line.empty()) {
+        lines.push_back(line);
+    }
+    
+    std::cout << "[DEBUG] getLogsAsJsonArray: Read " << lines.size() << " lines total" << std::endl;
+    
+    nlohmann::json logs = nlohmann::json::array();
+    int processedLines = 0;
+    
+    // Process all lines in the file
+    for (int i = 0; i < lines.size(); i++) {
+        if (!lines[i].empty()) {
             try {
-                logs.push_back(nlohmann::json::parse(line));
+                logs.push_back(nlohmann::json::parse(lines[i]));
+                processedLines++;
             } catch (const std::exception& e) {
-                std::cerr << "[ERROR] JSON parse error at line " << lineNum << ": " << e.what() << std::endl;
-                backupCorruptedLog(filename);
-                break;
+                std::cerr << "[ERROR] JSON parse error at line " << i + 1 << ": " << e.what() << std::endl;
+                // Don't break, continue processing other lines
             }
         }
     }
+    
+    std::cout << "[DEBUG] getLogsAsJsonArray: Completed. Processed: " << processedLines << " lines" << std::endl;
     return logs;
 }
 
