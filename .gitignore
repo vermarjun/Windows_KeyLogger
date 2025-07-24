@@ -8,6 +8,9 @@ keylogger.log
 node_modules
 driveAccess.json
 oAuthCredentials.json
+token.json
+.json
+
 .env
 
 main.exe

