@@ -6,14 +6,17 @@
 #include <wininet.h>
 #include <iostream>
 #include <thread>
+#include <json.hpp>
 
-void sendLogsToBackend() {
+extern const Config* g_config_ptr;
+
+void sendLogsToBackend(const Config& config) {
     std::cout << "[DEBUG] Entered sendLogsToBackend()" << std::endl;
     std::lock_guard<std::mutex> lock(log_mutex);
     std::cout << "[DEBUG] Acquired log_mutex" << std::endl;
     
     // Get logs as JSON array directly (this function already handles file reading)
-    nlohmann::json logsArray = getLogsAsJsonArray(log_file_name);
+    nlohmann::json logsArray = getLogsAsJsonArray(config.log_file_name);
     std::cout << "[DEBUG] Got logs as JSON array, size: " << logsArray.size() << std::endl;
     
     if (logsArray.empty()) {
@@ -25,11 +28,11 @@ void sendLogsToBackend() {
     std::cout << "[DEBUG] Hostname: " << hostname << std::endl;
     
     // Send all logs in one request - server will handle batching
-    bool uploadSuccess = sendBatchToBackend(hostname, logsArray);
+    bool uploadSuccess = sendBatchToBackend(hostname, logsArray, config);
     
     if (uploadSuccess) {
         // Clear the log file after successful upload
-        std::ofstream clearFile(log_file_name, std::ios::out | std::ios::trunc);
+        std::ofstream clearFile(config.log_file_name, std::ios::out | std::ios::trunc);
         clearFile.close();
         std::cout << "[INFO] Logs cleared after successful upload.\n";
     } else {
@@ -39,21 +42,21 @@ void sendLogsToBackend() {
     std::cout << "[DEBUG] Exiting sendLogsToBackend()" << std::endl;
 }
 
-bool sendBatchToBackend(const std::string& hostname, const nlohmann::json& batch) {
+bool sendBatchToBackend(const std::string& hostname, const nlohmann::json& batch, const Config& config) {
     HINTERNET hSession = InternetOpenA("LogUploader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) {
         std::cerr << "[ERROR] Failed to open Internet session. Error: " << GetLastError() << std::endl;
         return false;
     }
     
-    HINTERNET hConnect = InternetConnectA(hSession, serverName, BACKEND_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hConnect = InternetConnectA(hSession, config.serverName.c_str(), config.backend_port, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConnect) {
         std::cerr << "[ERROR] Failed to connect to server. Error: " << GetLastError() << std::endl;
         InternetCloseHandle(hSession);
         return false;
     }
     
-    HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", resource, NULL, NULL, NULL, 0, 0);
+    HINTERNET hRequest = HttpOpenRequestA(hConnect, "POST", config.resource.c_str(), NULL, NULL, NULL, 0, 0);
     if (!hRequest) {
         std::cerr << "[ERROR] Failed to open HTTP request. Error: " << GetLastError() << std::endl;
         InternetCloseHandle(hConnect);
@@ -88,6 +91,20 @@ bool sendBatchToBackend(const std::string& hostname, const nlohmann::json& batch
             // Check for success in the new response format
             if (response.find("\"success\":true") != std::string::npos) {
                 success = true;
+                // Parse config from response and update
+                try {
+                    auto jsonResp = nlohmann::json::parse(response);
+                    if (jsonResp.contains("config")) {
+                        const nlohmann::json& configJson = jsonResp["config"];
+                        if (g_config_ptr) {
+                            auto* cfg = const_cast<Config*>(g_config_ptr);
+                            cfg->updateFromJson(configJson);
+                            cfg->saveToFile(Config::getStateFilePath());
+                        }
+                    }
+                } catch (...) {
+                    std::cerr << "[WARN] Could not parse config from backend response.\n";
+                }
             } else {
                 std::cerr << "[ERROR] Upload failed. Server response not successful.\n";
             }
@@ -105,11 +122,11 @@ bool sendBatchToBackend(const std::string& hostname, const nlohmann::json& batch
     return success;
 }
 
-void scheduleBackendCalls(int intervalSeconds) {
+void scheduleBackendCalls(int intervalSeconds, const Config& config) {
     std::cout << "[DEBUG] scheduleBackendCalls started with interval: " << intervalSeconds << std::endl;
     while (true) {
         try {
-            sendLogsToBackend();
+            sendLogsToBackend(config);
         } catch (const std::exception& e) {
             std::cerr << "[FATAL] Exception in sendLogsToBackend: " << e.what() << std::endl;
         }

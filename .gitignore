@@ -7,6 +7,7 @@ keylogger.log
 # backend
 node_modules
 driveAccess.json
+oAuthCredentials.json
 .env
 
 main.exe

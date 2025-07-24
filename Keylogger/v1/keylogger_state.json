@@ -1,0 +1,11 @@
+{
+    "backend_port": 8000,
+    "boot_wait": true,
+    "format": 0,
+    "intervalMinutes": 2,
+    "log_file_name": "keylogger.log",
+    "mouse_ignore": true,
+    "resource": "/",
+    "serverName": "localhost",
+    "visible": true
+}
