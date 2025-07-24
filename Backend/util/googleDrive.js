@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
-import { JWT } from 'google-auth-library';
+// import { JWT } from 'google-auth-library';
+import { OAuth2Client } from 'google-auth-library';
 import fs from 'fs';
 import path from 'path';
 import { root_folder } from '../server.js';
@@ -13,15 +14,27 @@ class GoogleDriveService {
     async initializeDrive() {
         try {
             // Load service account credentials
-            const credentials = JSON.parse(fs.readFileSync("./driveAccess.json"));
+            // const credentials = JSON.parse(fs.readFileSync("./driveAccess.json"));
+            const credentials = JSON.parse(fs.readFileSync("./oAuthCredentials.json"));
+            // console.log(credentials)
+            // const auth = new JWT({
+            //     email: credentials.client_email,
+            //     key: credentials.private_key,
+            //     scopes: ['https://www.googleapis.com/auth/drive'],
+            // });
             
-            const auth = new JWT({
-                email: credentials.client_email,
-                key: credentials.private_key,
-                scopes: ['https://www.googleapis.com/auth/drive'],
-            });
+            const oAuth2Client = new OAuth2Client(
+                credentials.web.client_id,
+                credentials.web.client_secret,
+                credentials.web.redirect_uris[0]
+            );
 
-            this.drive = google.drive({ version: 'v3', auth });
+            const token = JSON.parse(fs.readFileSync('./token.json'));
+            
+            oAuth2Client.setCredentials(token);
+
+            // this.drive = google.drive({ version: 'v3', auth });
+            this.drive = google.drive({ version: 'v3', auth: oAuth2Client });
             console.log('Google Drive service initialized successfully');
         } catch (error) {
             console.error('Failed to initialize Google Drive service:', error);

