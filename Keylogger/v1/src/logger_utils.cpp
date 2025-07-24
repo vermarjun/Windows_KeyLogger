@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <windows.h>
 #include <vector>
+#include "logsEncryption.hpp"
 
 std::mutex log_mutex;
 
@@ -53,11 +54,15 @@ nlohmann::json getLogsAsJsonArray(const std::string& filename) {
     for (int i = 0; i < lines.size(); i++) {
         if (!lines[i].empty()) {
             try {
-                logs.push_back(nlohmann::json::parse(lines[i]));
-                processedLines++;
+                std::string decrypted = decryptAES_CBC(lines[i]);
+                if (!decrypted.empty()) {
+                    logs.push_back(nlohmann::json::parse(decrypted));
+                    processedLines++;
+                } else {
+                    std::cerr << "[ERROR] Decryption failed at line " << i + 1 << std::endl;
+                }
             } catch (const std::exception& e) {
                 std::cerr << "[ERROR] JSON parse error at line " << i + 1 << ": " << e.what() << std::endl;
-                // Don't break, continue processing other lines
             }
         }
     }

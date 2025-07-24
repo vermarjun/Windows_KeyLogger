@@ -9,7 +9,7 @@ node_modules
 driveAccess.json
 oAuthCredentials.json
 token.json
-.json
+keylogger_state.json
 
 .env
 
