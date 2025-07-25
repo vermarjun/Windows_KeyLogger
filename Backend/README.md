@@ -68,6 +68,15 @@ keylogger data/
   - Body: `{ "logs": [...], "hostname": "username" }`
   - Returns: `{ "success": true, "message": "Logs saved successfully to Google Drive" }`
 
+  User Routes:
+  POST /api/users/signup — Register a new user
+  POST /api/users/login — Login and receive JWT
+  GET /api/users/me — Get current user info (JWT required)
+  PUT /api/users/me — Update user info (JWT required)
+  DELETE /api/users/me — Delete user (JWT required)
+  POST /api/users/request-password-reset => Body: { "email": "user@example.com" } => (Logs a reset link to the server console.)
+  POST /api/users/reset-password/:token => Body: { "password": "newpassword" }
+
 ## Data Format
 
 Each log entry should be in the format:

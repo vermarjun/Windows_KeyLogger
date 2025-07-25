@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import GoogleDriveService from "./util/googleDrive.js";
 import BatchProcessor from "./util/batchProcessor.js";
 import {processKeyloggerData} from "./util/cleanRawLogs.js";
+import connectDB from "./util/database.js";
+import userRoutes from './router/userRoutes.js';
 
 dotenv.config({});
 
@@ -22,9 +24,9 @@ const configValues = {
         backend_port : 8000,
 }
 
-// Initialize Google Drive service
 export const root_folder = "1c-6HpFy91j6GWOwNrMON7BW0pHv7evFM"; 
-const googleDriveService = new GoogleDriveService();
+
+// The Google Drive service is initialized inside this batchProcessor's constructor automatically
 const batchProcessor = new BatchProcessor();
 
 // Middleware with increased body size limit
@@ -73,12 +75,16 @@ app.post("/", async (req, res) => {
     }
 });
 
+app.use('/api/users', userRoutes);
+
 // Start the server
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, async () => {
     try {
+        // connect to mongoDB
+        await connectDB();
+        // Server UP and running smooth
         console.log(`Server running at port ${PORT}`);
-        console.log('Google Drive Connected');
     } catch (err) {
         console.error('Failed to start server:', err);
         process.exit(1);
