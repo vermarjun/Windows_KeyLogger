@@ -3,8 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import sendMail from '../util/mailer.js';
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { JWT_CONFIG, PASSWORD_RESET_CONFIG } from '../config.js';
 
 export const signup = async (req, res) => {
   try {
@@ -39,7 +38,7 @@ export const login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user._id }, JWT_CONFIG.secret, { expiresIn: JWT_CONFIG.expiresIn });
     return res.status(200).json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch (err) {
     return res.status(500).json({ message: 'Server error', error: err.message });
@@ -85,8 +84,8 @@ export const requestPasswordReset = async (req, res) => {
     if (!email) return res.status(400).json({ message: 'Email is required.' });
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: 'User not found.' });
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = Date.now() + 1000 * 60 * 30; // 30 minutes
+    const resetToken = crypto.randomBytes(PASSWORD_RESET_CONFIG.tokenLength).toString('hex');
+    const resetTokenExpiry = Date.now() + PASSWORD_RESET_CONFIG.tokenExpiry;
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = resetTokenExpiry;
     await user.save();

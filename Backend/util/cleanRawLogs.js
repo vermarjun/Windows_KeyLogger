@@ -1,3 +1,5 @@
+import { KEYLOGGER_PROCESSING_CONFIG } from '../config.js';
+
 class KeyloggerProcessor {
   constructor() {
     this.specialKeys = new Set([
@@ -54,10 +56,10 @@ class KeyloggerProcessor {
       const currentWindow = event.window;
       const currentTimestamp = new Date(event.timestamp);
 
-      // Start new session if window changed or there's a gap > 5 minutes
+      // Start new session if window changed or there's a gap > threshold
       if (lastWindow && 
           (currentWindow !== lastWindow || 
-           (currentTimestamp - lastTimestamp) > 5 * 60 * 1000)) {
+           (currentTimestamp - lastTimestamp) > KEYLOGGER_PROCESSING_CONFIG.sessionGapThreshold)) {
         if (currentSession.length > 0) {
           sessions.push([...currentSession]);
           currentSession = [];
@@ -160,7 +162,7 @@ class KeyloggerProcessor {
     return {
       typing_speed_wpm: Math.round(typingSpeedWpm),
       typing_bursts: typingBursts,
-      backspace_frequency: Math.round(backspaceFrequency * 1000) / 1000
+      backspace_frequency: Math.round(backspaceFrequency * KEYLOGGER_PROCESSING_CONFIG.backspacePrecision) / KEYLOGGER_PROCESSING_CONFIG.backspacePrecision
     };
   }
 
@@ -436,7 +438,7 @@ class KeyloggerProcessor {
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+      hash = hash & hash; // Convert to specified bit size integer
     }
     return Math.abs(hash).toString(16).substring(0, 8);
   }

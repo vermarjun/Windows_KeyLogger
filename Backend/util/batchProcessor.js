@@ -1,10 +1,11 @@
 import GoogleDriveService from './googleDrive.js';
+import { BATCH_CONFIG } from '../config.js';
 
 class BatchProcessor {
     constructor() {
         this.googleDriveService = new GoogleDriveService();
-        this.batchSize = 1000; // Process 1000 logs at a time
-        this.maxRetries = 3;
+        this.batchSize = BATCH_CONFIG.batchSize;
+        this.maxRetries = BATCH_CONFIG.maxRetries;
     }
 
     async processLargeDataset(username, logs) {
@@ -58,7 +59,7 @@ class BatchProcessor {
                     throw error;
                 }
                 // Wait before retry (exponential backoff)
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.retryDelay * attempt));
             }
         }
     }

@@ -21,8 +21,9 @@ const UserSchema = new Schema({
     required: true,
   },
   oAuthCredentials: [{
-    type: String, // Store JSON stringified credentials
+    type: String,
     required: false,
+    full: false,
   }],
   client: [{
     type: Schema.Types.ObjectId,

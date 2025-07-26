@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { JWT_CONFIG } from '../config.js';
 
 const auth = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -9,7 +8,7 @@ const auth = (req, res, next) => {
   }
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_CONFIG.secret);
     req.userId = decoded.userId;
     next();
   } catch (err) {
