@@ -27,7 +27,7 @@ const UserSchema = new Schema({
   }],
   client: [{
     type: Schema.Types.ObjectId,
-    ref: 'Client',
+    ref: 'ClientProfile',
   }],
   profilePhoto: {
     type: String, // URL or path to profile photo
