@@ -54,10 +54,7 @@ const SessionSchema = new mongoose.Schema({
     reconstructed_text: String,
     start_time: Date,
     end_time: Date,
-    app: {
-        name: String,
-        category: String
-    },
+    app: String,
     clipboard: String
 }, { _id: false });
 

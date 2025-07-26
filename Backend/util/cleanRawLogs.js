@@ -11,17 +11,283 @@ class KeyloggerProcessor {
     ]);
 
     this.applicationCategories = {
+      // IDEs
+      'visual studio': 'ide',
       'visual studio code': 'ide',
       'cursor': 'ide',
+      'pycharm': 'ide',
+      'intellij idea': 'ide',
+      'webstorm': 'ide',
+      'android studio': 'ide',
+      'eclipse': 'ide',
+      'netbeans': 'ide',
+      'rider': 'ide',
+      'xamarin': 'ide',
+      'codeblocks': 'ide',
+      'dev c++': 'ide',
+      'arduino ide': 'ide',
+      'qt creator': 'ide',
+      'thunkable': 'ide',
+      'xcode': 'ide',
+      'bluej': 'ide',
+      'greenfoot': 'ide',
+
+      // Text Editors
       'notepad': 'text_editor',
+      'notepad++': 'text_editor',
+      'sublime text': 'text_editor',
+      'atom': 'text_editor',
+      'vim': 'text_editor',
+      'emacs': 'text_editor',
+      'gedit': 'text_editor',
+      'brackets': 'text_editor',
+
+      // Browsers
       'google chrome': 'browser',
+      'microsoft edge': 'browser',
       'firefox': 'browser',
+      'opera': 'browser',
+      'brave': 'browser',
+      'tor browser': 'browser',
+      'vivaldi': 'browser',
+      'maxthon': 'browser',
+      'avast secure browser': 'browser',
+      'uc browser': 'browser',
+
+      // Document Editors
       'microsoft word': 'document_editor',
+      'libreoffice writer': 'document_editor',
+      'wps writer': 'document_editor',
+      'notion': 'document_editor',
+      'scrivener': 'document_editor',
+      'typora': 'document_editor',
+      'focuswriter': 'document_editor',
+      'wordpad': 'document_editor',
+      'zoho writer': 'document_editor',
+
+      // Spreadsheets
       'excel': 'spreadsheet',
+      'libreoffice calc': 'spreadsheet',
+      'wps spreadsheets': 'spreadsheet',
+      'google sheets': 'spreadsheet',
+      'gnumeric': 'spreadsheet',
+
+      // Presentations
       'powerpoint': 'presentation',
+      'libreoffice impress': 'presentation',
+      'wps presentation': 'presentation',
+      'google slides': 'presentation',
+      'prezi': 'presentation',
+      'canva presentations': 'presentation',
+
+      // Communication
       'discord': 'communication',
       'slack': 'communication',
-      'zoom': 'communication'
+      'zoom': 'communication',
+      'microsoft teams': 'communication',
+      'skype': 'communication',
+      'google meet': 'communication',
+      'telegram': 'communication',
+      'whatsapp': 'communication',
+      'signal': 'communication',
+      'facebook messenger': 'communication',
+      'outlook': 'communication',
+      'thunderbird': 'communication',
+      'teamviewer': 'communication',
+      'anydesk': 'communication',
+      'viber': 'communication',
+      'zoom chat': 'communication',
+
+      // Design & Creative
+      'adobe photoshop': 'design',
+      'adobe illustrator': 'design',
+      'adobe xd': 'design',
+      'coreldraw': 'design',
+      'figma': 'design',
+      'canva': 'design',
+      'paint.net': 'design',
+      'krita': 'design',
+      'gimp': 'design',
+      'ms paint': 'design',
+      'affinity designer': 'design',
+      'adobe indesign': 'design',
+      'blender': 'design',
+      'inkscape': 'design',
+      'sketchbook': 'design',
+      'mediabang paint': 'design',
+
+      // Video & Media Editing
+      'adobe premiere pro': 'video_editing',
+      'filmora': 'video_editing',
+      'davinci resolve': 'video_editing',
+      'sony vegas': 'video_editing',
+      'obs studio': 'video_editing',
+      'camstudio': 'video_editing',
+      'lightworks': 'video_editing',
+      'shotcut': 'video_editing',
+      'openshot': 'video_editing',
+      'hitfilm express': 'video_editing',
+      'kdenlive': 'video_editing',
+      'handbrake': 'video_editing',
+
+      // Audio Editing
+      'audacity': 'audio_editing',
+      'fl studio': 'audio_editing',
+      'ableton live': 'audio_editing',
+      'adobe audition': 'audio_editing',
+      'reaper': 'audio_editing',
+      'logic pro': 'audio_editing',
+      'ocenaudio': 'audio_editing',
+
+      // Utilities
+      'task manager': 'system_utility',
+      'control panel': 'system_utility',
+      'windows settings': 'system_utility',
+      'command prompt': 'system_utility',
+      'powershell': 'system_utility',
+      'terminal': 'system_utility',
+      'git bash': 'system_utility',
+      'putty': 'system_utility',
+      'docker desktop': 'system_utility',
+      'vmware': 'system_utility',
+      'virtualbox': 'system_utility',
+      '7-zip': 'system_utility',
+      'winrar': 'system_utility',
+      'everything': 'system_utility',
+      'ccleaner': 'system_utility',
+      'process hacker': 'system_utility',
+      'sysinternals': 'system_utility',
+      'rufus': 'system_utility',
+      'ventoy': 'system_utility',
+      'autoruns': 'system_utility',
+      'speccy': 'system_utility',
+      'hwinfo': 'system_utility',
+      'cpu-z': 'system_utility',
+
+      // Media Players
+      'vlc media player': 'media_player',
+      'windows media player': 'media_player',
+      'mpv player': 'media_player',
+      'foobar2000': 'media_player',
+      'itunes': 'media_player',
+      'spotify': 'media_player',
+      'audible': 'media_player',
+      'groove music': 'media_player',
+      'winamp': 'media_player',
+      'media monkey': 'media_player',
+
+      // Game Launchers
+      'steam': 'gaming',
+      'epic games launcher': 'gaming',
+      'riot client': 'gaming',
+      'battle.net': 'gaming',
+      'origin': 'gaming',
+      'gog galaxy': 'gaming',
+      'rockstar launcher': 'gaming',
+      'twitch desktop app': 'gaming',
+      'ubisoft connect': 'gaming',
+      'minecraft launcher': 'gaming',
+      'roblox player': 'gaming',
+
+      // File Sync / Cloud
+      'onedrive': 'cloud_storage',
+      'google drive': 'cloud_storage',
+      'dropbox': 'cloud_storage',
+      'mega': 'cloud_storage',
+      'box': 'cloud_storage',
+      'pcloud': 'cloud_storage',
+      'icloud': 'cloud_storage',
+      'nextcloud': 'cloud_storage',
+      'syncthing': 'cloud_storage',
+
+      // Notes & Productivity
+      'onenote': 'productivity',
+      'evernote': 'productivity',
+      'notion': 'productivity',
+      'todoist': 'productivity',
+      'ticktick': 'productivity',
+      'obsidian': 'productivity',
+      'joplin': 'productivity',
+      'simplenote': 'productivity',
+      'workflowy': 'productivity',
+      'todolist': 'productivity',
+      'milanote': 'productivity',
+
+      // Security
+      'windows defender': 'security',
+      'kaspersky': 'security',
+      'bitdefender': 'security',
+      'norton': 'security',
+      'avast': 'security',
+      'mcafee': 'security',
+      'eset nod32': 'security',
+      'malwarebytes': 'security',
+      'glasswire': 'security',
+      'zonealarm': 'security',
+
+      // Finance
+      'excel': 'finance',
+      'quickbooks': 'finance',
+      'gnu cash': 'finance',
+      'zoho books': 'finance',
+      'microsoft money': 'finance',
+      'wave accounting': 'finance',
+      'tally': 'finance',
+      'mint': 'finance',
+
+      // DevOps / Backend Tools
+      'postman': 'devops',
+      'insomnia': 'devops',
+      'docker desktop': 'devops',
+      'kubernetes dashboard': 'devops',
+      'mongodb compass': 'devops',
+      'dbeaver': 'devops',
+      'robo 3t': 'devops',
+      'tableplus': 'devops',
+      'redis desktop manager': 'devops',
+      'beekeeper studio': 'devops',
+      'ngrok': 'devops',
+      'k6': 'devops',
+      'terraform': 'devops',
+
+      // AI / ML / Data Science
+      'anaconda navigator': 'data_science',
+      'jupyter notebook': 'data_science',
+      'spyder': 'data_science',
+      'r studio': 'data_science',
+      'orange': 'data_science',
+      'weka': 'data_science',
+      'rapidminer': 'data_science',
+      'knime': 'data_science',
+      'tableau': 'data_science',
+      'power bi': 'data_science',
+
+      // Virtual Meetings / Collaboration
+      'zoom': 'collaboration',
+      'microsoft teams': 'collaboration',
+      'slack': 'collaboration',
+      'google meet': 'collaboration',
+      'webex': 'collaboration',
+      'bluejeans': 'collaboration',
+      'teamviewer': 'collaboration',
+      'anydesk': 'collaboration',
+
+      // Ebook Readers
+      'calibre': 'ebook_reader',
+      'kindle': 'ebook_reader',
+      'sumatra pdf': 'ebook_reader',
+      'foxit reader': 'ebook_reader',
+      'adobe acrobat reader': 'ebook_reader',
+
+      // Misc Utilities
+      'calculator': 'utility',
+      'snipping tool': 'utility',
+      'clock': 'utility',
+      'alarm & clock': 'utility',
+      'sticky notes': 'utility',
+      'voice recorder': 'utility',
+      'magnifier': 'utility',
+      'steps recorder': 'utility'
     };
   }
 
@@ -113,23 +379,30 @@ class KeyloggerProcessor {
 
   extractApplicationInfo(windowTitle) {
     const lowerTitle = windowTitle.toLowerCase();
-    let appName = 'unknown';
-    let category = 'other';
 
-    // Extract application name from window title
-    if (lowerTitle.includes('visual studio code')) {
-      appName = 'visual_studio_code';
-    } else if (lowerTitle.includes('cursor')) {
-      appName = 'cursor';
-    } else if (lowerTitle.includes('notepad')) {
-      appName = 'notepad';
-    } else if (lowerTitle.includes('chrome')) {
-      appName = 'google_chrome';
-    } else if (lowerTitle.includes('firefox')) {
-      appName = 'firefox';
+    // Prepare patterns sorted by length (desc) for best match
+    const patterns = Object.keys(this.applicationCategories)
+      .sort((a, b) => b.length - a.length);
+
+    let matchedApp = null;
+
+    for (const pattern of patterns) {
+      // Use a loose match: pattern anywhere in the window title
+      if (lowerTitle.includes(pattern)) {
+        matchedApp = pattern;
+        break;
+      }
     }
 
-    category = this.applicationCategories[appName] || 'other';
+    let appName, category;
+    if (matchedApp) {
+      // Normalize app name for output (e.g., replace spaces with underscores)
+      appName = matchedApp.replace(/\s+/g, '_');
+      category = this.applicationCategories[matchedApp];
+    } else {
+      appName = 'unknown';
+      category = 'other';
+    }
 
     return {
       name: appName,
