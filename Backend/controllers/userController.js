@@ -67,6 +67,73 @@ export const updateUser = async (req, res) => {
   }
 };
 
+export const updateProfile = async (req, res) => {
+  try {
+    const { username, bio } = req.body;
+    const updates = {};
+    
+    if (username !== undefined) updates.username = username;
+    if (bio !== undefined) updates.bio = bio;
+    
+    const user = await User.findByIdAndUpdate(req.userId, updates, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    return res.status(200).json(user);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required.' });
+    }
+    
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect.' });
+    }
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+    
+    return res.status(200).json({ message: 'Password changed successfully.' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+export const uploadProfilePhoto = async (req, res) => {
+  try {
+    // This is a placeholder for profile photo upload
+    // You would typically use multer or similar middleware to handle file uploads
+    // For now, we'll return a mock response
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    
+    // Mock profile photo URL - in real implementation, you'd save the file and return the URL
+    const profilePhotoUrl = `https://example.com/profile-photos/${user._id}.jpg`;
+    
+    user.profilePhoto = profilePhotoUrl;
+    await user.save();
+    
+    return res.status(200).json({ 
+      message: 'Profile photo uploaded successfully.',
+      profilePhoto: profilePhotoUrl
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
 export const deleteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.userId);

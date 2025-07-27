@@ -1,11 +1,12 @@
 import express from 'express';
 import { 
-  getUserClients, 
+  getAllClients, 
   getClientById, 
   getClientDailyData, 
   getClientAllDailyData,
   createClient,
   updateClient,
+  updateClientConfig,
   deleteClient,
   getClientStats,
   getClientMonthlyData,
@@ -19,7 +20,7 @@ const router = express.Router();
 router.use(auth);
 
 // Get all clients for the authenticated user
-router.get('/', getUserClients);
+router.get('/', getAllClients);
 
 // Create a new client
 router.post('/', createClient);
@@ -41,6 +42,9 @@ router.get('/:clientId/monthly/:year/:month', getClientMonthlyData);
 
 // Update a client profile
 router.put('/:clientId', updateClient);
+
+// Update client config and tags
+router.put('/:clientId/config', updateClientConfig);
 
 // Delete a client profile
 router.delete('/:clientId', deleteClient);

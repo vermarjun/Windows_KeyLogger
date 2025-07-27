@@ -2,26 +2,23 @@ import ClientProfile from '../models/ClientProfile.js';
 import ClientDaily from '../models/ClientDaily.js';
 
 // Get all clients for the authenticated user
-export const getUserClients = async (req, res) => {
+export const getAllClients = async (req, res) => {
   try {
-    const clients = await ClientProfile.find({ Daddy: req.userId });
+    const clients = await ClientProfile.find();
     return res.status(200).json(clients);
   } catch (err) {
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
-// Get a specific client by ID (only if owned by the user)
+// Get a specific client by ID
 export const getClientById = async (req, res) => {
   try {
     const { clientId } = req.params;
-    const client = await ClientProfile.findOne({ 
-      _id: clientId, 
-      Daddy: req.userId 
-    });
+    const client = await ClientProfile.findById(clientId);
     
     if (!client) {
-      return res.status(404).json({ message: 'Client not found or access denied.' });
+      return res.status(404).json({ message: 'Client not found.' });
     }
     
     return res.status(200).json(client);
@@ -35,14 +32,11 @@ export const getClientDailyData = async (req, res) => {
   try {
     const { clientId, date } = req.params;
     
-    // First verify the client belongs to the user
-    const client = await ClientProfile.findOne({ 
-      _id: clientId, 
-      Daddy: req.userId 
-    });
+    // First verify the client exists
+    const client = await ClientProfile.findById(clientId);
     
     if (!client) {
-      return res.status(404).json({ message: 'Client not found or access denied.' });
+      return res.status(404).json({ message: 'Client not found.' });
     }
     
     // Get daily data for the specified date
@@ -66,14 +60,11 @@ export const getClientAllDailyData = async (req, res) => {
   try {
     const { clientId } = req.params;
     
-    // First verify the client belongs to the user
-    const client = await ClientProfile.findOne({ 
-      _id: clientId, 
-      Daddy: req.userId 
-    });
+    // First verify the client exists
+    const client = await ClientProfile.findById(clientId);
     
     if (!client) {
-      return res.status(404).json({ message: 'Client not found or access denied.' });
+      return res.status(404).json({ message: 'Client not found.' });
     }
     
     // Get all daily data for the client
@@ -116,17 +107,46 @@ export const updateClient = async (req, res) => {
     const { clientId } = req.params;
     const updates = req.body;
     
-    // Remove Daddy from updates to prevent ownership change
-    delete updates.Daddy;
-    
-    const client = await ClientProfile.findOneAndUpdate(
-      { _id: clientId, Daddy: req.userId },
+    const client = await ClientProfile.findByIdAndUpdate(
+      clientId,
       updates,
       { new: true }
     );
     
     if (!client) {
-      return res.status(404).json({ message: 'Client not found or access denied.' });
+      return res.status(404).json({ message: 'Client not found.' });
+    }
+    
+    return res.status(200).json(client);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// Update client config and tags
+export const updateClientConfig = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { config, tags } = req.body;
+    
+    const updateData = {};
+    
+    if (config !== undefined) {
+      updateData.config = config;
+    }
+    
+    if (tags !== undefined) {
+      updateData.tags = tags;
+    }
+    
+    const client = await ClientProfile.findByIdAndUpdate(
+      clientId,
+      updateData,
+      { new: true }
+    );
+    
+    if (!client) {
+      return res.status(404).json({ message: 'Client not found.' });
     }
     
     return res.status(200).json(client);
@@ -140,13 +160,10 @@ export const deleteClient = async (req, res) => {
   try {
     const { clientId } = req.params;
     
-    const client = await ClientProfile.findOneAndDelete({ 
-      _id: clientId, 
-      Daddy: req.userId 
-    });
+    const client = await ClientProfile.findByIdAndDelete(clientId);
     
     if (!client) {
-      return res.status(404).json({ message: 'Client not found or access denied.' });
+      return res.status(404).json({ message: 'Client not found.' });
     }
     
     // Also delete all associated daily data
@@ -163,14 +180,11 @@ export const getClientStats = async (req, res) => {
   try {
     const { clientId } = req.params;
     
-    // First verify the client belongs to the user
-    const client = await ClientProfile.findOne({ 
-      _id: clientId, 
-      Daddy: req.userId 
-    });
+    // First verify the client exists
+    const client = await ClientProfile.findById(clientId);
     
     if (!client) {
-      return res.status(404).json({ message: 'Client not found or access denied.' });
+      return res.status(404).json({ message: 'Client not found.' });
     }
     
     // Get basic stats
@@ -204,14 +218,11 @@ export const getClientMonthlyData = async (req, res) => {
       return res.status(400).json({ message: 'Invalid year or month format.' });
     }
     
-    // First verify the client belongs to the user
-    const client = await ClientProfile.findOne({ 
-      _id: clientId, 
-      Daddy: req.userId 
-    });
+    // First verify the client exists
+    const client = await ClientProfile.findById(clientId);
     
     if (!client) {
-      return res.status(404).json({ message: 'Client not found or access denied.' });
+      return res.status(404).json({ message: 'Client not found.' });
     }
     
     // Create date range for the month
@@ -335,14 +346,14 @@ export const getAllClientsMonthlyData = async (req, res) => {
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Get all clients for the user
-    const clients = await ClientProfile.find({ Daddy: req.userId })
+    // Get all clients
+    const clients = await ClientProfile.find()
       .skip(skip)
       .limit(parseInt(limit))
       .select('_id deviceName display_name last_seen total_sessions');
     
     // Get total count for pagination
-    const totalCount = await ClientProfile.countDocuments({ Daddy: req.userId });
+    const totalCount = await ClientProfile.countDocuments();
     
     // Get monthly summary for each client
     const clientsWithMonthlyData = await Promise.all(

@@ -1,5 +1,9 @@
 import ClientDaily from '../models/ClientDaily.js';
 import { extractContentFromText } from './contentDetection.js';
+import { CodeDetector } from './flagTextAsCode.js';
+
+// Instantiate CodeDetector once at the top level
+const codeDetector = new CodeDetector();
 
 /**
  * Updates ClientDaily model with processed logs data
@@ -263,9 +267,24 @@ function updateActivityTimeline(clientDaily, log) {
  * Update sessions (only if content is non-empty)
  */
 function updateSessions(clientDaily, log) {
-    const reconstructedText = log.content?.reconstructed_text || '';
+    let reconstructedText = log.content?.reconstructed_text || '';
     const clipboardData = log.clipboard_activity?.clipboard_data || [];
-    const hasClipboardContent = clipboardData.some(item => item.content && item.content.trim() !== '');
+
+    // Check if reconstructedText is code
+    if (reconstructedText && codeDetector.detectCode(reconstructedText)) {
+        reconstructedText = '';
+    }
+
+    // Check clipboard content for code
+    // If any clipboard item is code, treat its content as empty string
+    const sanitizedClipboardData = clipboardData.map(item => {
+        if (item.content && codeDetector.detectCode(item.content)) {
+            return { ...item, content: '' };
+        }
+        return item;
+    });
+
+    const hasClipboardContent = sanitizedClipboardData.some(item => item.content && item.content.trim() !== '');
 
     // If clipboard has content, always add session as before
     if (hasClipboardContent) {
@@ -274,7 +293,7 @@ function updateSessions(clientDaily, log) {
             start_time: new Date(log.start_time),
             end_time: new Date(log.end_time),
             app: log.application?.window_title || 'unknown',
-            clipboard: JSON.stringify(clipboardData)
+            clipboard: JSON.stringify(sanitizedClipboardData)
         };
         clientDaily.sessions.push(session);
         return;

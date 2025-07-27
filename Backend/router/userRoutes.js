@@ -1,5 +1,16 @@
 import express from 'express';
-import { signup, login, getUser, updateUser, deleteUser, requestPasswordReset, resetPassword } from '../controllers/userController.js';
+import { 
+  signup, 
+  login, 
+  getUser, 
+  updateUser, 
+  updateProfile,
+  changePassword,
+  uploadProfilePhoto,
+  deleteUser, 
+  requestPasswordReset, 
+  resetPassword 
+} from '../controllers/userController.js';
 import auth from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -13,6 +24,9 @@ router.post('/reset-password/:token', resetPassword);
 // Protected routes
 router.get('/me', auth, getUser);
 router.put('/me', auth, updateUser);
+router.put('/profile', auth, updateProfile);
+router.put('/change-password', auth, changePassword);
+router.post('/profile-photo', auth, uploadProfilePhoto);
 router.delete('/me', auth, deleteUser);
 
 export default router; 
