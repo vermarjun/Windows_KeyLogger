@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
+import { VictimsPage } from './VictimsPage';
+import { VictimDashboard } from './VictimDashboard';
+import { VictimLogsPage } from './VictimLogsPage';
 
 export const HomePage = () => {
   const { toast } = useToast();
@@ -90,7 +94,13 @@ export const HomePage = () => {
           </div>
         )}
         
-        {/* Empty home page - content will be added later */}
+        {/* Sub-routing for HomePage */}
+        <Routes>
+          <Route path="/" element={<VictimsPage />} />
+          <Route path="/:clientId" element={<VictimDashboard />} />
+          <Route path="/:clientId/:date" element={<VictimLogsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
     </div>
   );

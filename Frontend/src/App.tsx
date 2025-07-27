@@ -18,7 +18,7 @@ function App() {
             
             {/* Protected routes */}
             <Route
-              path="/"
+              path="*"
               element={
                 <ProtectedRoute>
                   <HomePage />
@@ -43,9 +43,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
-            {/* Catch all route - redirect to auth if not logged in, home if logged in */}
-            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster />
         </div>
