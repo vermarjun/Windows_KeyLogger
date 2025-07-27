@@ -62,19 +62,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       localStorage.setItem('token', token);
       
-      // Transform the backend user data to match our frontend User type
-      const transformedUser: User = {
-        _id: userData.id, // Backend returns 'id' instead of '_id'
-        username: userData.username,
-        email: userData.email,
-        profilePhoto: '', // Not returned in login response
-        lastActive: new Date(),
-        createdAt: new Date(), // Not returned in login response
-        isActive: true, // Default value
-        bio: '', // Default value
-        role: 'user', // Default value
-      };
-      setUser(transformedUser);
+      // After login, fetch complete user data
+      await verifyToken();
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Login failed');
     }

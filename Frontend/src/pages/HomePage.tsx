@@ -1,136 +1,96 @@
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { Navbar } from '@/components/Navbar';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, User, Mail, Calendar, Shield } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 export const HomePage = () => {
-  const { user, logout } = useAuth();
   const { toast } = useToast();
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
-  const handleLogout = () => {
-    logout();
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
-    });
-  };
+  useEffect(() => {
+    // Check if user was redirected from OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const driveAdded = urlParams.get('driveAdded');
+    const error = urlParams.get('error');
+    
+    if (driveAdded === 'true') {
+      setShowSuccessMessage(true);
+      setMessageType('success');
+      toast({
+        title: "Success!",
+        description: "Drive has been successfully added to your account.",
+      });
+      
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 5000);
+    } else if (driveAdded === 'false' && error) {
+      setShowSuccessMessage(true);
+      setMessageType('error');
+      toast({
+        title: "Error",
+        description: `Failed to add drive: ${error}`,
+        variant: "destructive"
+      });
+      
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Hide error message after 5 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 5000);
+    }
+  }, [toast]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
-        </div>
-      </header>
-
-      {/* Main Content */}
+      <Navbar />
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-2">
-              Welcome back, {user?.username}!
-            </h2>
-            <p className="text-muted-foreground">
-              Here's your dashboard overview
-            </p>
-          </div>
-
-          {/* User Profile Card */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center">
-                <User className="mr-2 h-5 w-5" />
-                Profile Information
-              </CardTitle>
-              <CardDescription>
-                Your account details and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center space-x-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="text-foreground">{user?.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Member Since</p>
-                    <p className="text-foreground">
-                      {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Role</p>
-                    <p className="text-foreground capitalize">{user?.role}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <p className={`${user?.isActive ? 'text-green-500' : 'text-red-500'}`}>
-                      {user?.isActive ? 'Active' : 'Inactive'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="hover:bg-accent/50 transition-all duration-200 cursor-pointer group">
+        {showSuccessMessage && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <Card className={`${
+              messageType === 'success' 
+                ? 'border-green-200 bg-green-50' 
+                : 'border-red-200 bg-red-50'
+            }`}>
               <CardHeader>
-                <CardTitle className="text-foreground group-hover:text-primary transition-colors">
-                  Analytics
+                <CardTitle className={`${
+                  messageType === 'success' ? 'text-green-800' : 'text-red-800'
+                } flex items-center`}>
+                  <CheckCircle className="mr-2 h-5 w-5" />
+                  {messageType === 'success' ? 'Drive Added Successfully!' : 'Failed to Add Drive'}
                 </CardTitle>
-                <CardDescription>
-                  View your activity metrics
+                <CardDescription className={
+                  messageType === 'success' ? 'text-green-700' : 'text-red-700'
+                }>
+                  {messageType === 'success' 
+                    ? 'Your Google Drive has been connected and is ready to store client logs.'
+                    : 'There was an error connecting your Google Drive. Please try again.'
+                  }
                 </CardDescription>
               </CardHeader>
-            </Card>
-
-            <Card className="hover:bg-accent/50 transition-all duration-200 cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="text-foreground group-hover:text-primary transition-colors">
-                  Settings
-                </CardTitle>
-                <CardDescription>
-                  Manage your account settings
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:bg-accent/50 transition-all duration-200 cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="text-foreground group-hover:text-primary transition-colors">
-                  Support
-                </CardTitle>
-                <CardDescription>
-                  Get help and contact support
-                </CardDescription>
-              </CardHeader>
+              <CardContent>
+                <p className={`${
+                  messageType === 'success' ? 'text-green-700' : 'text-red-700'
+                } text-sm`}>
+                  {messageType === 'success' 
+                    ? 'The drive will be used as cold storage for client logs. You can manage your drives using the "Drives" dropdown in the navigation bar.'
+                    : 'Please check your internet connection and try again. If the problem persists, contact support.'
+                  }
+                </p>
+              </CardContent>
             </Card>
           </div>
-        </div>
+        )}
+        
+        {/* Empty home page - content will be added later */}
       </main>
     </div>
   );
