@@ -253,7 +253,73 @@ export const VictimDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* System Info Card */}
+          {/* Editable Config Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Settings className="h-5 w-5" />
+                <span>Client Configuration</span>
+              </CardTitle>
+              <CardDescription>
+                <span className="font-semibold text-indigo-600">Editing these values will reflect them on keylogger binary in real time.</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-medium">Format</label>
+                  <select className="w-full border rounded p-2" defaultValue={victim.config?.format}>
+                    <option value={0}>Labels</option>
+                    <option value={10}>Decimal</option>
+                    <option value={16}>Hex</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-medium">Visibility</label>
+                  <select className="w-full border rounded p-2" defaultValue={victim.config?.visible ? 'true' : 'false'}>
+                    <option value="true">Visible</option>
+                    <option value="false">Invisible</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-medium">Boot Wait</label>
+                  <select className="w-full border rounded p-2" defaultValue={victim.config?.boot_wait ? 'true' : 'false'}>
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-medium">Mouse Ignore</label>
+                  <select className="w-full border rounded p-2" defaultValue={victim.config?.mouse_ignore ? 'true' : 'false'}>
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-medium">Server</label>
+                  <input className="w-full border rounded p-2" defaultValue={victim.config?.serverName} />
+                </div>
+                <div>
+                  <label className="font-medium">Port</label>
+                  <input className="w-full border rounded p-2" type="number" defaultValue={victim.config?.backend_port} />
+                </div>
+                <div>
+                  <label className="font-medium">Resource</label>
+                  <input className="w-full border rounded p-2" defaultValue={victim.config?.resource} />
+                </div>
+                <div>
+                  <label className="font-medium">Interval (minutes)</label>
+                  <input className="w-full border rounded p-2" type="number" defaultValue={victim.config?.intervalMinutes} />
+                </div>
+                <div>
+                  <label className="font-medium">Log File Name</label>
+                  <input className="w-full border rounded p-2" defaultValue={victim.config?.log_file_name} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* System Info Card (Hardcoded) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -264,19 +330,19 @@ export const VictimDashboard = () => {
             <CardContent className="space-y-3 text-sm">
               <div>
                 <p className="font-medium text-muted-foreground">Operating System</p>
-                <p>{victim.system_info?.os || 'Unknown'}</p>
+                <p>Windows 10 Pro</p>
               </div>
               <div>
                 <p className="font-medium text-muted-foreground">Architecture</p>
-                <p>{victim.system_info?.arch || 'Unknown'}</p>
+                <p>x64</p>
               </div>
               <div>
                 <p className="font-medium text-muted-foreground">Hostname</p>
-                <p>{victim.system_info?.hostname || 'Unknown'}</p>
+                <p>DESKTOP-1234</p>
               </div>
               <div>
                 <p className="font-medium text-muted-foreground">IP Address</p>
-                <p>{victim.system_info?.ip || 'Unknown'}</p>
+                <p>192.168.1.100</p>
               </div>
             </CardContent>
           </Card>
@@ -287,6 +353,7 @@ export const VictimDashboard = () => {
           {/* Calendar Section */}
           {victim && (
             <div className="w-full">
+              <div className="mb-2 text-xs text-blue-600 font-medium">Blue dates are the dates for which the data is available.</div>
               <Calendar
                 mode="single"
                 selected={undefined}
@@ -318,12 +385,12 @@ export const VictimDashboard = () => {
               >
                 <Recharts.BarChart
                   data={victim.apps_used}
-                  layout="vertical"
-                  margin={{ top: 10, right: 30, left: 40, bottom: 10 }}
+                  layout="horizontal"
+                  margin={{ top: 30, right: 30, left: 40, bottom: 10 }}
                 >
-                  <Recharts.XAxis type="number" tick={{ fontSize: 12 }} label={{ value: 'Minutes', position: 'insideBottomRight', offset: -5 }} tickFormatter={(v) => Math.round(v / 1000 / 60)} />
-                  <Recharts.YAxis dataKey="appname" type="category" width={120} tick={{ fontSize: 12 }} />
-                  <Recharts.Bar dataKey="timespent" isAnimationActive fill="#6366f1" radius={[4, 4, 4, 4]} />
+                  <Recharts.XAxis dataKey="appname" type="category" tick={{ fontSize: 12 }} width={120} />
+                  <Recharts.YAxis type="number" tick={{ fontSize: 12 }} label={{ value: 'Minutes', position: 'insideLeft', angle: -90, offset: 10 }} tickFormatter={(v) => Math.round(v / 1000 / 60)} />
+                  <Recharts.Bar dataKey="timespent" isAnimationActive fill="#6366f1" radius={[4, 4, 0, 0]} />
                   <Recharts.Tooltip formatter={(value) => `${Math.round((value as number) / 1000 / 60)} min`} />
                 </Recharts.BarChart>
               </ChartContainer>
