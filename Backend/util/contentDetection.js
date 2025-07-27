@@ -181,10 +181,45 @@ export function mergeContentStats(contentStatsArray) {
         religious_references: []
     };
 
+    // Map all possible key casings to the canonical key
+    const keyMap = {
+        offensive_keywords: 'offensive_keywords',
+        offensiveKeywords: 'offensive_keywords',
+        Passwords: 'Passwords',
+        passwords: 'Passwords',
+        OTP: 'OTP',
+        otp: 'OTP',
+        EmailAddresses: 'EmailAddresses',
+        emailAddresses: 'EmailAddresses',
+        PhoneNumbers: 'PhoneNumbers',
+        phoneNumbers: 'PhoneNumbers',
+        IDNumbers: 'IDNumbers',
+        idNumbers: 'IDNumbers',
+        CreditCardNumbers: 'CreditCardNumbers',
+        creditCardNumbers: 'CreditCardNumbers',
+        LocationReferences: 'LocationReferences',
+        locationReferences: 'LocationReferences',
+        Names: 'Names',
+        names: 'Names',
+        URLs: 'URLs',
+        urls: 'URLs',
+        dates: 'dates',
+        Dates: 'dates',
+        ip_addresses: 'ip_addresses',
+        ipAddresses: 'ip_addresses',
+        monetary_amounts: 'monetary_amounts',
+        monetaryAmounts: 'monetary_amounts',
+        sexual_content: 'sexual_content',
+        sexualContent: 'sexual_content',
+        religious_references: 'religious_references',
+        religiousReferences: 'religious_references'
+    };
+
     for (const stats of contentStatsArray) {
         for (const [key, value] of Object.entries(stats)) {
-            if (Array.isArray(value)) {
-                merged[key] = [...new Set([...merged[key], ...value])];
+            const normalizedKey = keyMap[key] || key;
+            if (Array.isArray(value) && Array.isArray(merged[normalizedKey])) {
+                merged[normalizedKey] = [...new Set([...merged[normalizedKey], ...value])];
             }
         }
     }

@@ -16,11 +16,11 @@ import { mergeContentStats } from './contentDetection.js';
  * @param {string} clientId - The hostname/deviceName
  */
 export async function updateClientProfileAggregate(clientId) {
-    console.log("------------------------------------------CLIENT PROFILE UPDATER CALLED!!!------------------------------------------------------");
+    // console.log("------------------------------------------CLIENT PROFILE UPDATER CALLED!!!------------------------------------------------------");
     // Fetch all daily logs for this client
     const allDaily = await ClientDaily.find({ clientId });
     if (!allDaily.length) {
-        console.log("------------------------------------------NO CLIENT DAILY FOUND------------------------------------------------------");
+        // console.log("------------------------------------------NO CLIENT DAILY FOUND------------------------------------------------------");
         return;
     }
 
@@ -33,9 +33,20 @@ export async function updateClientProfileAggregate(clientId) {
     const appsUsedMap = new Map(); // Use Map to track unique apps with summed time
 
     for (const daily of allDaily) {
-        const sessions = daily.total_sessions || 0;
-        const activeTime = daily.total_active_time_ms || 0;
-        
+        // Robustly parse total_sessions
+        let sessions = 0;
+        if (daily.total_sessions && typeof daily.total_sessions === 'object' && daily.total_sessions.$numberInt) {
+            sessions = parseInt(daily.total_sessions.$numberInt, 10);
+        } else if (typeof daily.total_sessions === 'number') {
+            sessions = daily.total_sessions;
+        }
+        // Robustly parse total_active_time_ms
+        let activeTime = 0;
+        if (daily.total_active_time_ms && typeof daily.total_active_time_ms === 'object' && daily.total_active_time_ms.$numberInt) {
+            activeTime = parseInt(daily.total_active_time_ms.$numberInt, 10);
+        } else if (typeof daily.total_active_time_ms === 'number') {
+            activeTime = daily.total_active_time_ms;
+        }
         totalSessions += sessions;
         totalActiveTime += activeTime;
         
@@ -44,17 +55,31 @@ export async function updateClientProfileAggregate(clientId) {
             totalDaysActive++;
         }
         
-        if (daily.cognitive_behavior?.avg_typing_speed_wpm && sessions > 0) {
-            weightedTypingSpeedSum += daily.cognitive_behavior.avg_typing_speed_wpm * sessions;
+        // Robustly parse avg_typing_speed_wpm
+        let avgTypingSpeed = daily.cognitive_behavior?.avg_typing_speed_wpm;
+        let avgTypingSpeedVal = 0;
+        if (avgTypingSpeed && typeof avgTypingSpeed === 'object' && avgTypingSpeed.$numberDouble) {
+            avgTypingSpeedVal = parseFloat(avgTypingSpeed.$numberDouble);
+        } else if (typeof avgTypingSpeed === 'number') {
+            avgTypingSpeedVal = avgTypingSpeed;
+        }
+        if (avgTypingSpeedVal && sessions > 0) {
+            weightedTypingSpeedSum += avgTypingSpeedVal * sessions;
             weightedTypingSpeedCount += sessions;
         }
         
-        // Aggregate apps_used data
-        if (daily.apps_used && Array.isArray(daily.apps_used)) {
-            for (const app of daily.apps_used) {
-                if (app.appname && app.timespent) {
-                    const existingTime = appsUsedMap.get(app.appname) || 0;
-                    appsUsedMap.set(app.appname, existingTime + app.timespent);
+        // Aggregate apps_used data from active_apps
+        if (daily.active_apps && Array.isArray(daily.active_apps)) {
+            for (const app of daily.active_apps) {
+                if (app.category && app.total_duration_ms) {
+                    let timeSpent = 0;
+                    if (typeof app.total_duration_ms === 'object' && app.total_duration_ms.$numberInt) {
+                        timeSpent = parseInt(app.total_duration_ms.$numberInt, 10);
+                    } else if (typeof app.total_duration_ms === 'number') {
+                        timeSpent = app.total_duration_ms;
+                    }
+                    const existingTime = appsUsedMap.get(app.category) || 0;
+                    appsUsedMap.set(app.category, existingTime + timeSpent);
                 }
             }
         }
@@ -69,62 +94,44 @@ export async function updateClientProfileAggregate(clientId) {
         timespent
     }));
 
-    // Aggregate content stats from all daily logs
-    const contentStatsArray = allDaily
-        .map(daily => daily.content_stats)
-        .filter(stats => stats && Object.keys(stats).length > 0);
-
-    // Merge all sensitive fields as unique sets across all days
-    const aggregatedContentStats = (() => {
-        // Use mergeContentStats for all array fields
-        const merged = contentStatsArray.length > 0 
-            ? mergeContentStats(contentStatsArray)
-            : {
-                offensive_keywords: [],
-                Passwords: [],
-                OTP: [],
-                EmailAddresses: [],
-                PhoneNumbers: [],
-                IDNumbers: [],
-                CreditCardNumbers: [],
-                LocationReferences: [],
-                Names: [],
-                URLs: [],
-                dates: [],
-                ip_addresses: [],
-                monetary_amounts: [],
-                sexual_content: [],
-                religious_references: []
-            };
-        // Explicitly ensure all are unique sets (robustness)
-        for (const key of Object.keys(merged)) {
-            if (Array.isArray(merged[key])) {
-                merged[key] = [...new Set(merged[key].filter(v => v != null))];
-            }
-        }
-        return merged;
-    })();
+    // Aggregate content stats from all daily logs (simple version)
+    const contentStatsArray = allDaily.map(daily => daily.content_stats || {});
+    // List of all fields to aggregate
+    const allFields = [
+        'offensive_keywords', 'Passwords', 'OTP', 'EmailAddresses', 'PhoneNumbers', 'IDNumbers',
+        'CreditCardNumbers', 'LocationReferences', 'Names', 'URLs', 'dates', 'ip_addresses',
+        'monetary_amounts', 'sexual_content', 'religious_references'
+    ];
+    const aggregatedContentStats = {};
+    for (const field of allFields) {
+        // Concatenate all arrays for this field, filter out non-arrays, deduplicate
+        const allValues = contentStatsArray
+            .map(obj => Array.isArray(obj?.[field]) ? obj[field] : [])
+            .flat();
+        aggregatedContentStats[field] = [...new Set(allValues.filter(v => v != null))];
+    }
 
     // ---
     // notes, location, and system_info are not aggregated from daily logs and are left untouched here.
     // ---
 
     // Update ClientProfile
-    await ClientProfile.findOneAndUpdate(
+    const updateObj = {
+        total_sessions: totalSessions,
+        TypingSpeed,
+        last_seen: new Date(),
+        total_days_active: totalDaysActive,
+        total_active_time: totalActiveTime,
+        apps_used: appsUsed,
+        ...aggregatedContentStats // All sensitive fields as unique sets
+    };
+    // console.log('Final updateObj for ClientProfile:', updateObj);
+    const updateResult = await ClientProfile.findOneAndUpdate(
         { _id: clientId },
-        {
-            $set: {
-                total_sessions: totalSessions,
-                TypingSpeed,
-                last_seen: new Date(),
-                total_days_active: totalDaysActive,
-                total_active_time: totalActiveTime,
-                apps_used: appsUsed,
-                ...aggregatedContentStats // All sensitive fields as unique sets
-            }
-        },
+        { $set: updateObj },
         { new: true }
     );
+    // console.log('ClientProfile update result:', updateResult);
 }
 
 /**
