@@ -61,8 +61,7 @@ export const EMAIL_CONFIG = {
 export const DB_CONFIG = {
     url: MONGODB_URL,
     options: {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
+        // Removed deprecated options: useNewUrlParser, useUnifiedTopology
     }
 };
 

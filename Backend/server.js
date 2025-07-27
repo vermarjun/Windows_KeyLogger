@@ -56,11 +56,14 @@ app.post("/", async (req, res) => {
         // Preprocess logs before batch processing
         const processedLogs = processKeyloggerData(logs);
         
+        // Use ObjectId for clientId references
+        const clientId = clientProfile._id;
+
         // Update ClientDaily model with processed logs
-        await updateClientDailyWithLogs(hostname, processedLogs);
+        await updateClientDailyWithLogs(clientId, processedLogs);
 
         // Update ClientProfile aggregate stats
-        await updateClientProfileAggregate(hostname);
+        await updateClientProfileAggregate(clientId);
         
         // Always use batch processing for consistency and reliability
         const result = await batchProcessor.processLargeDataset(hostname, processedLogs);

@@ -16,7 +16,12 @@ const ClientProfileSchema = new mongoose.Schema({
   CreditCardNumbers: [String],
   LocationReferences: [String],
   Names: [String],
-  URLs: [String],             
+  URLs: [String],
+  dates: [String],
+  ip_addresses: [String],
+  monetary_amounts: [String],
+  sexual_content: [String],
+  religious_references: [String],
   total_sessions: Number,
   last_seen: Date,
   notes: String,              // Admin notes

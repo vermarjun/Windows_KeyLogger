@@ -31,7 +31,12 @@ const ContentStatsSchema = new mongoose.Schema({
     CreditCardNumbers: [String],
     LocationReferences: [String],
     Names: [String],
-    URLs: [String]
+    URLs: [String],
+    dates: [String], 
+    ip_addresses: [String],
+    monetary_amounts: [String],
+    sexual_content: [String],
+    religious_references: [String],
 }, { _id: false });
 
 const ClipboardStatsSchema = new mongoose.Schema({

