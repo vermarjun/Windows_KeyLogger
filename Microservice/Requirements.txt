@@ -3,3 +3,12 @@ uvicorn
 torch
 transformers
 pydantic
+spacy
+nltk
+regex
+python-dateutil
+phonenumbers
+email-validator
+creditcard
+urllib3
+requests
