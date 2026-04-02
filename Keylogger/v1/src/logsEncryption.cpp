@@ -7,10 +7,12 @@
 
 // 16-byte key (128-bit AES)
 const uint8_t AES_KEY[16] = {
+    'Y','o','u','r','1','6','B','y','t','e','K','e','y','!','!','!'
 };
 
 // 16-byte IV (must be 16 bytes!)
 const uint8_t AES_IV[16] = {
+    'I','n','i','t','V','e','c','t','o','r','1','6','B','y','t','e'
 };
 
 std::vector<unsigned char> padToBlock(std::vector<unsigned char>& data) {

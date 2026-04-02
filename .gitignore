@@ -11,7 +11,17 @@ oAuthCredentials.json
 token.json
 keylogger_state.json
 
+__pycache__
+myvenv
+
 .env
+
+Testing
 
 main.exe
 .env
+
+asd.json
+context.md
+introduction.md
+.claude

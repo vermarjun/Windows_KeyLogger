@@ -61,7 +61,6 @@ const UserSchema = new Schema({
   resetPasswordExpires: {
     type: Date,
   },
-  // Add any other fields you think are useful for a user
 });
 
 export default mongoose.model('User', UserSchema); 
