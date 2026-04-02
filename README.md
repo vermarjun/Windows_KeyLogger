@@ -14,18 +14,18 @@ The architecture spans four distinct layers:
 
 ```
 [Windows C++ Keylogger]          ← endpoint agent, encrypted upload
-         │                       
-         │ HTTPS/AES-128-CBC     
-         ↓                       
+         │
+         │ HTTPS/AES-128-CBC
+         ↓
 [Node.js/Express Backend]         ← ingestion, processing, storage routing
-    │           │                
-    ↓           ↓                
+    │           │
+    ↓           ↓
 [MongoDB]    [Google Drive]       ← structured analytics | raw archive
-    │                              
-    ↓                              
+    │
+    ↓
 [React Dashboard]                 ← admin interface
-    │                              
-    ↓                              
+    │
+    ↓
 [Python FLAN-T5 Microservice]    ← NLP-based session refinement
 ```
 
@@ -104,15 +104,17 @@ POST / (encrypted logs + hostname)
 
 **Data architecture:**
 
-| Model | Purpose |
-|-------|---------|
+| Model           | Purpose                                                                                         |
+| --------------- | ----------------------------------------------------------------------------------------------- |
 | `ClientProfile` | Lifetime aggregate per device — total keystrokes, app usage breakdown, extracted sensitive data |
-| `ClientDaily` | Per-day analytics — sessions, WPM distribution, context switches, behavioral patterns |
-| `User` | Admin accounts for dashboard access |
+| `ClientDaily`   | Per-day analytics — sessions, WPM distribution, context switches, behavioral patterns           |
+| `User`          | Admin accounts for dashboard access                                                             |
 
-**Google Drive cold storage:**
+**Cold storage via Google Drive:**
 
-Sessions are too large to store long-term in a regular database. Raw keystroke sessions are organized in Google Drive:
+The raw keystroke sessions are too large for long-term database storage. Following the approach popularized by projects like [GC2](https://github.com/looCiprian/GC2-sheet) — which demonstrated using Google Sheets as a command-and-control channel — I leveraged Google's Workspace ecosystem as a free, elastic cold storage layer.
+
+Sessions are organized in Google Drive:
 
 ```
 KeySight/
@@ -125,7 +127,7 @@ KeySight/
 │   └── ...
 ```
 
-Files roll over at 10MB. The system uses OAuth2 with 48 pre-provisioned Google accounts — when one fills up, the batch processor automatically switches to the next. This is free, elastic, and has no database cost.
+Files roll over at 10MB. OAuth2 handles authentication and the system can scale across multiple provisioned accounts as storage needs grow. This approach is free, requires no infrastructure, and blends exfiltration traffic with legitimate Google API calls.
 
 **Config push:**
 
@@ -159,7 +161,7 @@ A FastAPI wrapper around Google's FLAN-T5 (small) model. It takes raw or partial
 - `"leet"` + context of code platform → `leetcode`
 - Fragmented typing across chunked uploads → coherent session reconstruction
 
-**Why a local model and not a public API?** Keystroke logs may contain sensitive data. Sending that to a third-party LLM API is a data governance problem. FLAN-T5 small runs on modest hardware and keeps all processing in-house.
+**Why a local model and not a public API?** Keystroke logs may contain sensitive data. FLAN-T5 small runs on modest hardware and keeps all processing in-house.
 
 ---
 
@@ -177,16 +179,16 @@ A FastAPI wrapper around Google's FLAN-T5 (small) model. It takes raw or partial
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Keylogger | C++, Windows API (`WH_KEYBOARD_LL`, `WinInet`) |
-| Encryption | AES-128-CBC |
-| Backend | Node.js, Express.js 4, Mongoose 8 |
-| Database | MongoDB Atlas |
-| Auth | JWT, bcryptjs |
-| Cold Storage | Google Drive API v3, OAuth2 |
-| Frontend | React 18, TypeScript 5.8, Vite 7, TailwindCSS, Recharts |
-| NLP Service | Python 3, FastAPI, HuggingFace Transformers (FLAN-T5) |
+| Layer        | Technology                                              |
+| ------------ | ------------------------------------------------------- |
+| Keylogger    | C++, Windows API (`WH_KEYBOARD_LL`, `WinInet`)          |
+| Encryption   | AES-128-CBC                                             |
+| Backend      | Node.js, Express.js 4, Mongoose 8                       |
+| Database     | MongoDB Atlas                                           |
+| Auth         | JWT, bcryptjs                                           |
+| Cold Storage | Google Drive API v3, OAuth2                             |
+| Frontend     | React 18, TypeScript 5.8, Vite 7, TailwindCSS, Recharts |
+| NLP Service  | Python 3, FastAPI, HuggingFace Transformers (FLAN-T5)   |
 
 ---
 
@@ -200,6 +202,7 @@ npm install
 ```
 
 Create `.env`:
+
 ```env
 MONGODB_URL=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/
 DATABASE_NAME=windows_keylogger
