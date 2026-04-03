@@ -45,9 +45,9 @@ The keylogger is a ~1.6MB Windows binary that operates with near-zero external d
 }
 ```
 
-![Key Logger Debugger Window (Doesn't appear in deployment)](./images/KeyLoggerDebuggedWindowLogs.png)
-![Local Cache Example](./images/LocalCacheExample.png)
-![Local Cache Encrypted (How it is stored)](./images/EncryptedLocalCache.png)
+![Key Logger Debugger Window (Doesn't appear in deployment)](assets/images/KeyLoggerDebuggerWindowLogs.png)
+![Local Cache Example](assets/images/LocalCacheExample.png)
+![Local Cache Encrypted (How it is stored)](assets/images/EncryptedLocalCache.png)
 
 **Design decisions:**
 
@@ -129,7 +129,7 @@ KeySight/
 │   └── ...
 ```
 
-![Victim's Day Wise Report on google drive](./images/GoogleDriveVictimDailyReport.png)
+![Victim's Day Wise Report on google drive](assets/images/GoogleDriveVictimDailyReport.jpeg)
 
 **Config push:**
 
@@ -151,10 +151,10 @@ A dashboard for managing the entire operation:
 
 Tech stack: React 18, TypeScript 5.8, Vite 7, TailwindCSS 3.4, Radix UI, Recharts 2.15.
 
-![Dashboard Calendar](./images/DashboardCalendar.png)
-![Dashboard Applications Used](./images/DashboardApplicationsUsed.png)
-![Dashboard Activity Data](./images/DashboardActivityData.png)
-![Dashboard](./images/Dashboard.png)
+![Dashboard Calendar](assets/images/DashboardCalendar.png)
+![Dashboard Applications Used](assets/images/DashboardApplicationsUsed.png)
+![Dashboard Activity Data](assets/images/DashboardActivityData.png)
+![Dashboard](assets/images/Dashboard.jpeg)
 
 ---
 
