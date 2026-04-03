@@ -1,4 +1,4 @@
-# KeySight — Keystroke Analytics & Session Reconstruction Platform
+# KeySight (Key logger on steroids?)
 
 > **Warning**: This project is for educational and research purposes only. Do not deploy any component on machines you do not own or without explicit written consent. Unauthorized surveillance is illegal.
 
@@ -6,16 +6,16 @@
 
 ## Overview
 
-KeySight is a full-stack surveillance platform that captures keystrokes on Windows, reconstructs sessions from raw key sequences, extracts behavioral patterns, and presents everything through an analytics dashboard.
+KeySight is a spyware tool that can capture keystrokes on Windows, reconstructs sessions from raw key sequences, extract behavioral patterns, and present everything through an analytics dashboard.
 
-Unlike a basic keylogger that just logs keystrokes, KeySight treats the problem as a data pipeline: raw keystroke streams → session reconstruction → content extraction → behavioral analytics → cold storage. The result is a system that transforms noisy, fragmented keystroke data into structured intelligence about a user's digital behavior.
+Unlike a basic keylogger that just logs keystrokes, it can treat the problem as a data pipeline: raw keystroke streams → session reconstruction → content extraction → behavioral analytics → cold storage. The result is a system that transforms noisy, fragmented keystroke data into structured intelligence about a user's behavior.
 
 The architecture spans four distinct layers:
 
 ```
 [Windows C++ Keylogger]          ← endpoint agent, encrypted upload
          │
-         │ HTTPS/AES-128-CBC
+         │ HTTPS with AES-128-CBC encryption
          ↓
 [Node.js/Express Backend]         ← ingestion, processing, storage routing
     │           │
@@ -33,11 +33,9 @@ The architecture spans four distinct layers:
 
 ## Architecture
 
-### 1. Endpoint Agent — C++ Keylogger
+### 1. Endpoint (C++ Keylogger)
 
-**Location:** `Keylogger/v1/`
-
-The keylogger is a ~1.6MB Windows binary that operates with near-zero external dependencies. It installs a `WH_KEYBOARD_LL` low-level keyboard hook — the same API layer that keyloggers, accessibility tools, and input routing libraries use — and captures every keystroke with per-event metadata:
+The keylogger is a ~1.6MB Windows binary that operates with near-zero external dependencies. It installs a `WH_KEYBOARD_LL` low-level keyboard hook, the same API layer that accessibility tools, and input routing libraries use and captures every keystroke with per-event metadata:
 
 ```json
 {
@@ -46,6 +44,10 @@ The keylogger is a ~1.6MB Windows binary that operates with near-zero external d
   "key": "H"
 }
 ```
+
+![Key Logger Debugger Window (Doesn't appear in deployment)](./images/KeyLoggerDebuggedWindowLogs.png)
+![Local Cache Example](./images/LocalCacheExample.png)
+![Local Cache Encrypted (How it is stored)](./images/EncryptedLocalCache.png)
 
 **Design decisions:**
 
@@ -56,7 +58,7 @@ The keylogger is a ~1.6MB Windows binary that operates with near-zero external d
 - **Clipboard monitoring**: A separate thread polls the clipboard every 500ms to capture copy events that wouldn't appear as keystrokes (e.g., password manager autofill).
 - **Persistence**: Configurable autostart via registry run keys.
 
-The binary can be delivered as a raw executable, wrapped in an HTA/LNK loader, or sent via email — Gmail and WhatsApp do not flag it as malicious.
+The binary can be delivered as a raw executable, wrapped in an HTA/LNK loader, or sent via email. Gmail and WhatsApp do not flag it as malicious.
 
 ---
 
@@ -104,15 +106,15 @@ POST / (encrypted logs + hostname)
 
 **Data architecture:**
 
-| Model           | Purpose                                                                                         |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| `ClientProfile` | Lifetime aggregate per device — total keystrokes, app usage breakdown, extracted sensitive data |
-| `ClientDaily`   | Per-day analytics — sessions, WPM distribution, context switches, behavioral patterns           |
-| `User`          | Admin accounts for dashboard access                                                             |
+| Model           | Purpose                                                                                        |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| `ClientProfile` | Lifetime aggregate per device: total keystrokes, app usage breakdown, extracted sensitive data |
+| `ClientDaily`   | Per-day analytics: sessions, WPM distribution, context switches, behavioral patterns           |
+| `User`          | Attacker                                                                                       |
 
 **Cold storage via Google Drive:**
 
-The raw keystroke sessions are too large for long-term database storage. Following the approach popularized by projects like [GC2](https://github.com/looCiprian/GC2-sheet) — which demonstrated using Google Sheets as a command-and-control channel — I leveraged Google's Workspace ecosystem as a free, elastic cold storage layer.
+The raw keystroke sessions are too large for long-term database storage. Following the approach by projects like [GC2](https://github.com/looCiprian/GC2-sheet), which demonstrated using Google Sheets as a command-and-control channel I tried to use Google's Workspace ecosystem as a free, elastic cold storage layer.
 
 Sessions are organized in Google Drive:
 
@@ -127,7 +129,7 @@ KeySight/
 │   └── ...
 ```
 
-Files roll over at 10MB. OAuth2 handles authentication and the system can scale across multiple provisioned accounts as storage needs grow. This approach is free, requires no infrastructure, and blends exfiltration traffic with legitimate Google API calls.
+![Victim's Day Wise Report on google drive](./images/GoogleDriveVictimDailyReport.png)
 
 **Config push:**
 
@@ -148,6 +150,11 @@ A dashboard for managing the entire operation:
 - **Daily logs** — Session-level view with reconstructed text and metadata
 
 Tech stack: React 18, TypeScript 5.8, Vite 7, TailwindCSS 3.4, Radix UI, Recharts 2.15.
+
+![Dashboard Calendar](./images/DashboardCalendar.png)
+![Dashboard Applications Used](./images/DashboardApplicationsUsed.png)
+![Dashboard Activity Data](./images/DashboardActivityData.png)
+![Dashboard](./images/Dashboard.png)
 
 ---
 
@@ -238,7 +245,7 @@ uvicorn flan_service:app --reload --port 8001
 
 ### Keylogger (Windows)
 
-1. Edit `Keylogger/v1/keylogger_state.json` — set `serverName` and `backend_port`
+1. Edit `Keylogger/v1/keylogger_state.json`, set `serverName` and `backend_port`
 2. Build with `compile.bat` (MSVC or MinGW)
 3. Run on a machine you own
 
